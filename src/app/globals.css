@@ -1,0 +1,193 @@
+@import "tailwindcss";
+
+/*
+ * DESIGN SYSTEM: High-Contrast Theme
+ * ==================================
+ *
+ * PRINCIPLES:
+ * 1. All body text: minimum 7:1 contrast (WCAG AAA)
+ * 2. Muted/secondary text: minimum 4.5:1 contrast (WCAG AA)
+ * 3. Borders and interactive elements: minimum 3:1 contrast
+ * 4. Page vs Surface: obvious visual separation
+ * 5. Single color family (zinc) for consistency
+ *
+ * TOKEN STRUCTURE (ShadCN-compatible):
+ * - background/foreground: page level
+ * - card/card-foreground: surface level
+ * - primary/secondary/accent/destructive: semantic actions
+ * - muted/muted-foreground: de-emphasized content
+ * - border/input/ring: interactive elements
+ */
+
+@theme {
+  /* Light theme colors - defined as Tailwind theme values */
+  --color-background: #f4f4f5;
+  --color-foreground: #09090b;
+
+  --color-card: #ffffff;
+  --color-card-foreground: #09090b;
+
+  --color-popover: #ffffff;
+  --color-popover-foreground: #09090b;
+
+  --color-primary: #6d28d9;
+  --color-primary-foreground: #ffffff;
+
+  --color-secondary: #e4e4e7;
+  --color-secondary-foreground: #18181b;
+
+  --color-muted: #e4e4e7;
+  --color-muted-foreground: #52525b;
+
+  --color-accent: #ede9fe;
+  --color-accent-foreground: #4c1d95;
+
+  --color-destructive: #dc2626;
+  --color-destructive-foreground: #ffffff;
+
+  --color-border: #a1a1aa;
+  --color-input: #71717a;
+  --color-ring: #6d28d9;
+
+  /* Additional semantic colors */
+  --color-success: #16a34a;
+  --color-success-foreground: #ffffff;
+  --color-warning: #d97706;
+  --color-warning-foreground: #ffffff;
+}
+
+:root {
+  /* CSS custom properties for runtime access */
+  --background: #f4f4f5;
+  --foreground: #09090b;
+
+  --card: #ffffff;
+  --card-foreground: #09090b;
+
+  --popover: #ffffff;
+  --popover-foreground: #09090b;
+
+  --primary: #6d28d9;
+  --primary-foreground: #ffffff;
+
+  --secondary: #e4e4e7;
+  --secondary-foreground: #18181b;
+
+  --muted: #e4e4e7;
+  --muted-foreground: #52525b;
+
+  --accent: #ede9fe;
+  --accent-foreground: #4c1d95;
+
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+
+  --border: #a1a1aa;
+  --input: #71717a;
+  --ring: #6d28d9;
+
+  --success: #16a34a;
+  --warning: #d97706;
+
+  --radius: 0.5rem;
+}
+
+.dark {
+  --background: #09090b;
+  --foreground: #fafafa;
+
+  --card: #18181b;
+  --card-foreground: #fafafa;
+
+  --popover: #18181b;
+  --popover-foreground: #fafafa;
+
+  --primary: #a78bfa;
+  --primary-foreground: #09090b;
+
+  --secondary: #27272a;
+  --secondary-foreground: #fafafa;
+
+  --muted: #27272a;
+  --muted-foreground: #a1a1aa;
+
+  --accent: #2e1065;
+  --accent-foreground: #c4b5fd;
+
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+
+  --border: #3f3f46;
+  --input: #52525b;
+  --ring: #a78bfa;
+
+  --success: #22c55e;
+  --warning: #f59e0b;
+}
+
+/* Override Tailwind theme in dark mode */
+.dark {
+  --color-background: #09090b;
+  --color-foreground: #fafafa;
+  --color-card: #18181b;
+  --color-card-foreground: #fafafa;
+  --color-popover: #18181b;
+  --color-popover-foreground: #fafafa;
+  --color-primary: #a78bfa;
+  --color-primary-foreground: #09090b;
+  --color-secondary: #27272a;
+  --color-secondary-foreground: #fafafa;
+  --color-muted: #27272a;
+  --color-muted-foreground: #a1a1aa;
+  --color-accent: #2e1065;
+  --color-accent-foreground: #c4b5fd;
+  --color-destructive: #ef4444;
+  --color-destructive-foreground: #ffffff;
+  --color-border: #3f3f46;
+  --color-input: #52525b;
+  --color-ring: #a78bfa;
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+}
+
+/* Base styles */
+body {
+  background-color: var(--card);
+  color: var(--foreground);
+}
+
+/* Text selection - high contrast */
+::selection {
+  background-color: #c4b5fd;
+  color: #09090b;
+}
+
+.dark ::selection {
+  background-color: #4c1d95;
+  color: #fafafa;
+}
+
+/* Focus styles - bold and visible */
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Scrollbar styling for dark mode */
+.dark ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: var(--muted);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: var(--input);
+}

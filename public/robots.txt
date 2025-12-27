@@ -1,0 +1,11 @@
+# Formastr - Nostr Profile Viewer
+# https://formastr.app
+
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://formastr.app/sitemap.xml
+
+# Crawl-delay for polite crawling
+Crawl-delay: 1
