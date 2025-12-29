@@ -1,14 +1,20 @@
 'use client';
 
+import { useMemo, useState } from 'react';
 import { ReplyWithAuthor } from '@/hooks/useReplies';
 import { Avatar } from '@/components/ui/Avatar';
 import { Card } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { Button } from '@/components/ui/Button';
 import { NoteContent } from './NoteContent';
 import { formatNpub, formatTimestamp } from '@/lib/utils';
 import { hexToNpub } from '@/lib/nostr/keys';
 import { nip19 } from 'nostr-tools';
 import Link from 'next/link';
+
+// Limit initial render to prevent mobile memory issues
+const INITIAL_RENDER_LIMIT = 15;
+const LOAD_MORE_COUNT = 10;
 
 interface ReplyListProps {
   replies: ReplyWithAuthor[];
@@ -16,6 +22,18 @@ interface ReplyListProps {
 }
 
 export function ReplyList({ replies, loading }: ReplyListProps) {
+  const [displayCount, setDisplayCount] = useState(INITIAL_RENDER_LIMIT);
+
+  // Limit rendered replies to prevent DOM overload
+  const displayedReplies = useMemo(() => {
+    return replies.slice(0, displayCount);
+  }, [replies, displayCount]);
+
+  const hasMore = replies.length > displayCount;
+
+  const loadMore = () => {
+    setDisplayCount((prev) => Math.min(prev + LOAD_MORE_COUNT, replies.length));
+  };
   if (loading && replies.length === 0) {
     return (
       <div className="space-y-4">
@@ -54,7 +72,7 @@ export function ReplyList({ replies, loading }: ReplyListProps) {
       <h2 className="text-lg font-semibold text-foreground">
         Comments ({replies.length})
       </h2>
-      {replies.map(({ note, author }) => {
+      {displayedReplies.map(({ note, author }) => {
         const npub = hexToNpub(note.pubkey);
         const displayName = author?.displayName || author?.name || formatNpub(npub);
 
@@ -89,6 +107,13 @@ export function ReplyList({ replies, loading }: ReplyListProps) {
           </Card>
         );
       })}
+      {hasMore && !loading && (
+        <div className="text-center pt-2">
+          <Button onClick={loadMore} variant="secondary" size="sm">
+            Load more comments ({replies.length - displayCount} remaining)
+          </Button>
+        </div>
+      )}
       {loading && (
         <Card className="flex gap-3">
           <Skeleton className="w-10 h-10 rounded-full flex-shrink-0" />

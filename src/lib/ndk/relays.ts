@@ -25,10 +25,9 @@ export function fetchRelayListStreaming(
     onComplete();
   };
 
-  // Timeout to prevent infinite loading
+  // Timeout to prevent infinite loading (timeout is expected for users without NIP-65 relay lists)
   const timeoutId = setTimeout(() => {
     if (!completed) {
-      console.warn('[NDK] Relay list fetch timed out for', pubkey);
       complete();
     }
   }, RELAY_FETCH_TIMEOUT);

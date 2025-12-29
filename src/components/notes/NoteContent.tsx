@@ -6,6 +6,7 @@ import { LazyLinkPreview, LazyYouTubeEmbed, LazyEmbeddedNote } from '@/component
 import { MentionLink } from './MentionLink';
 import { ImageGallery, toGalleryImages } from './ImageGallery';
 import { parseImetaTags } from '@/lib/nostr/nips/nip92';
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 
 interface NoteContentProps {
   content: string;
@@ -84,25 +85,27 @@ export const NoteContent = memo(function NoteContent({ content, tags, depth = 0 
   }, [parts]);
 
   return (
-    <div className="space-y-3">
-      {groups.map((group, i) => {
-        if (group.type === 'inline') {
-          return (
-            <div key={i} className="whitespace-pre-wrap break-words">
-              {group.parts.map((part, j) => (
-                <RenderInlinePart key={j} part={part} />
-              ))}
-            </div>
-          );
-        } else if (group.type === 'image-gallery') {
-          const imageUrls = group.parts.map((p) => p.href!);
-          const galleryImages = toGalleryImages(imageUrls, imetaMap);
-          return <ImageGallery key={i} images={galleryImages} />;
-        } else {
-          return <RenderBlockPart key={i} part={group.parts[0]} depth={depth} />;
-        }
-      })}
-    </div>
+    <ErrorBoundary fallback={<div className="text-muted-foreground italic">Content failed to load</div>}>
+      <div className="space-y-3">
+        {groups.map((group, i) => {
+          if (group.type === 'inline') {
+            return (
+              <div key={i} className="whitespace-pre-wrap break-words">
+                {group.parts.map((part, j) => (
+                  <RenderInlinePart key={j} part={part} />
+                ))}
+              </div>
+            );
+          } else if (group.type === 'image-gallery') {
+            const imageUrls = group.parts.map((p) => p.href!);
+            const galleryImages = toGalleryImages(imageUrls, imetaMap);
+            return <ImageGallery key={i} images={galleryImages} />;
+          } else {
+            return <RenderBlockPart key={i} part={group.parts[0]} depth={depth} />;
+          }
+        })}
+      </div>
+    </ErrorBoundary>
   );
 });
 

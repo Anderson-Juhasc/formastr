@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useMemo } from 'react';
+import { useEffect, useRef, useMemo, memo } from 'react';
 import { Avatar } from '@/components/ui/Avatar';
 import { Card } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/Skeleton';
@@ -8,6 +8,36 @@ import { formatNpub } from '@/lib/utils';
 import { hexToNpub } from '@/lib/nostr/keys';
 import { FollowWithProfile } from '@/hooks/useFollowing';
 import Link from 'next/link';
+
+// Memoized individual follow item to prevent re-renders
+const FollowItem = memo(function FollowItem({ entry, profile }: FollowWithProfile) {
+  const npub = profile?.npub || hexToNpub(entry.pubkey);
+  const displayName = profile?.displayName || profile?.name || entry.petname || formatNpub(npub);
+
+  return (
+    <Link href={`/${npub}`}>
+      <Card className="flex items-center gap-3 hover:shadow-lg transition-all">
+        <Avatar
+          src={profile?.picture}
+          alt={displayName}
+          size="md"
+        />
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold text-card-foreground truncate">
+            {displayName}
+          </p>
+          {profile?.nip05 ? (
+            <p className="text-sm text-primary font-semibold truncate">
+              {profile.nip05}
+            </p>
+          ) : !profile ? (
+            <Skeleton className="h-3 w-24 mt-1" />
+          ) : null}
+        </div>
+      </Card>
+    </Link>
+  );
+});
 
 // Maximum items to render in DOM to prevent mobile memory issues
 const MAX_RENDERED_ITEMS = 100;
@@ -22,7 +52,7 @@ interface FollowingListProps {
   emptyMessage?: string;
 }
 
-export function FollowingList({
+export const FollowingList = memo(function FollowingList({
   following,
   loading,
   loadingMore = false,
@@ -91,34 +121,9 @@ export function FollowingList({
             </div>
           </Card>
         ))}
-        {renderedFollowing.map(({ entry, profile }) => {
-          const npub = profile?.npub || hexToNpub(entry.pubkey);
-          const displayName = profile?.displayName || profile?.name || entry.petname || formatNpub(npub);
-
-          return (
-            <Link key={entry.pubkey} href={`/${npub}`}>
-              <Card className="flex items-center gap-3 hover:shadow-lg transition-all">
-                <Avatar
-                  src={profile?.picture}
-                  alt={displayName}
-                  size="md"
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-card-foreground truncate">
-                    {displayName}
-                  </p>
-                  {profile?.nip05 ? (
-                    <p className="text-sm text-primary font-semibold truncate">
-                      {profile.nip05}
-                    </p>
-                  ) : !profile ? (
-                    <Skeleton className="h-3 w-24 mt-1" />
-                  ) : null}
-                </div>
-              </Card>
-            </Link>
-          );
-        })}
+        {renderedFollowing.map(({ entry, profile }) => (
+          <FollowItem key={entry.pubkey} entry={entry} profile={profile} />
+        ))}
         {loadingMore && (
           <>
             <Card className="flex items-center gap-3">
@@ -141,4 +146,4 @@ export function FollowingList({
       {hasMore && !loadingMore && <div ref={observerRef} className="h-4 mt-4" />}
     </div>
   );
-}
+});

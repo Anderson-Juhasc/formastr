@@ -7,6 +7,7 @@ import { QueryProvider } from '@/components/QueryProvider';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { HeaderSearch } from '@/components/HeaderSearch';
+import { PageErrorBoundary } from '@/components/PageErrorBoundary';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -156,7 +157,9 @@ export default function RootLayout({
             </header>
             <main className="pt-8 pb-16 bg-background" role="main">
               <div className="max-w-4xl mx-auto px-4">
-              {children}
+                <PageErrorBoundary>
+                  {children}
+                </PageErrorBoundary>
               </div>
             </main>
             <footer className="border-t-2 border-border bg-card" role="contentinfo">
