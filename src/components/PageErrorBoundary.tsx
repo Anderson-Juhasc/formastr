@@ -38,6 +38,17 @@ function PageErrorFallback() {
             </Button>
           </Link>
         </div>
+        <p className="mt-6 text-sm text-muted-foreground">
+          If this keeps happening,{' '}
+          <a
+            href="https://github.com/Anderson-Juhasc/formastr/issues"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary hover:underline"
+          >
+            report the issue
+          </a>
+        </p>
       </div>
     </div>
   );
