@@ -38,6 +38,10 @@ function createEmptyProfile(pubkey: string): Profile {
   };
 }
 
+// Validate hex pubkey (must be 64 character hex string)
+const isValidHexPubkey = (pubkey: string) =>
+  typeof pubkey === 'string' && /^[0-9a-f]{64}$/i.test(pubkey);
+
 /**
  * Fetch profile with streaming callback - NON-BLOCKING
  * Uses PARALLEL to get both cache and network results
@@ -47,8 +51,8 @@ export function fetchProfileStreaming(
   onProfile: (profile: Profile) => void,
   onComplete: () => void
 ): { cancel: () => void } {
-  // Validate input - empty pubkey would cause "No filters to merge" error
-  if (!pubkey || typeof pubkey !== 'string' || pubkey.length === 0) {
+  // Validate input - must be valid 64-char hex to prevent relay errors
+  if (!isValidHexPubkey(pubkey)) {
     onComplete();
     return { cancel: () => {} };
   }
@@ -164,8 +168,8 @@ export function fetchProfilesBatchStreaming(
   onProfile: (pubkey: string, profile: Profile) => void,
   onComplete: () => void
 ): { cancel: () => void } {
-  // Filter out empty/invalid pubkeys to prevent "No filters to merge" error
-  const validPubkeys = pubkeys.filter((pk) => pk && typeof pk === 'string' && pk.length > 0);
+  // Filter out invalid pubkeys - must be valid 64-char hex to prevent relay errors
+  const validPubkeys = pubkeys.filter(isValidHexPubkey);
 
   if (validPubkeys.length === 0) {
     onComplete();

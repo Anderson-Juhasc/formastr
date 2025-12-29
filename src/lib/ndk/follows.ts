@@ -7,12 +7,17 @@ export interface FollowEntry {
   petname?: string;
 }
 
+// Validate hex pubkey (must be 64 character hex string)
+const isValidHexPubkey = (pubkey: string) =>
+  typeof pubkey === 'string' && /^[0-9a-f]{64}$/i.test(pubkey);
+
 function parseFollowList(event: NDKEvent): FollowEntry[] {
   const seen = new Set<string>();
   const following: FollowEntry[] = [];
 
   for (const tag of event.tags) {
-    if (tag[0] === 'p' && tag[1] && !seen.has(tag[1])) {
+    // Validate pubkey is a proper 64-char hex string
+    if (tag[0] === 'p' && tag[1] && isValidHexPubkey(tag[1]) && !seen.has(tag[1])) {
       seen.add(tag[1]);
       following.push({
         pubkey: tag[1],
