@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import { Avatar } from '@/components/ui/Avatar';
 import { Card } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/Skeleton';
@@ -8,6 +8,9 @@ import { formatNpub } from '@/lib/utils';
 import { hexToNpub } from '@/lib/nostr/keys';
 import { FollowWithProfile } from '@/hooks/useFollowing';
 import Link from 'next/link';
+
+// Maximum items to render in DOM to prevent mobile memory issues
+const MAX_RENDERED_ITEMS = 100;
 
 interface FollowingListProps {
   following: FollowWithProfile[];
@@ -54,6 +57,15 @@ export function FollowingList({
     };
   }, [hasMore, loadMore, loadingMore]);
 
+  // Limit rendered items to prevent mobile memory exhaustion
+  const renderedFollowing = useMemo(() => {
+    if (following.length <= MAX_RENDERED_ITEMS) return following;
+    // Show most recent items (end of array) when over limit
+    return following.slice(-MAX_RENDERED_ITEMS);
+  }, [following]);
+
+  const isLimited = following.length > MAX_RENDERED_ITEMS;
+
   if (!loading && following.length === 0 && (total === undefined || total === 0)) {
     return (
       <div className="text-center py-12 text-muted-foreground font-medium">
@@ -66,7 +78,7 @@ export function FollowingList({
     <div>
       {total !== undefined && total > 0 && (
         <p className="text-sm text-muted-foreground mb-4 font-medium">
-          Showing {following.length} of {total}
+          Showing {renderedFollowing.length}{isLimited ? ` (limited from ${following.length})` : ''} of {total}
         </p>
       )}
       <div className="grid gap-3 sm:grid-cols-2">
@@ -79,7 +91,7 @@ export function FollowingList({
             </div>
           </Card>
         ))}
-        {following.map(({ entry, profile }) => {
+        {renderedFollowing.map(({ entry, profile }) => {
           const npub = profile?.npub || hexToNpub(entry.pubkey);
           const displayName = profile?.displayName || profile?.name || entry.petname || formatNpub(npub);
 

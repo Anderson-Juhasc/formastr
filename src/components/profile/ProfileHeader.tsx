@@ -66,9 +66,11 @@ export function ProfileHeader({ profile }: ProfileHeaderProps) {
             src={profile.banner}
             alt="Banner"
             fill
+            sizes="100vw"
             className="object-cover hover:opacity-90 transition-opacity"
             onError={() => setBannerError(true)}
-            unoptimized
+            priority={false}
+            loading="lazy"
           />
         )}
       </div>

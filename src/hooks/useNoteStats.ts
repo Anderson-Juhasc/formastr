@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { NoteStats, fetchNoteStatsStreaming } from '@/lib/ndk/stats';
+import { startStatsFetch, endStatsFetch, canStartStatsFetch } from '@/lib/ndk/concurrency';
 
 interface UseNoteStatsResult {
   stats: NoteStats;
@@ -21,6 +22,7 @@ const EMPTY_STATS: NoteStats = {
 export function useNoteStats(noteId: string, enabled = true): UseNoteStatsResult {
   const queryClient = useQueryClient();
   const cancelRef = useRef<(() => void) | null>(null);
+  const startedRef = useRef(false);
 
   const queryKey = ['noteStats', noteId];
 
@@ -29,6 +31,14 @@ export function useNoteStats(noteId: string, enabled = true): UseNoteStatsResult
     queryFn: ({ signal }) => {
       if (!noteId) return EMPTY_STATS;
 
+      // Check concurrency limit - if at limit, return empty stats and don't block
+      if (!canStartStatsFetch()) {
+        return EMPTY_STATS;
+      }
+
+      startStatsFetch();
+      startedRef.current = true;
+
       return new Promise<NoteStats>((resolve) => {
         let latestStats = { ...EMPTY_STATS };
         let resolved = false;
@@ -36,6 +46,10 @@ export function useNoteStats(noteId: string, enabled = true): UseNoteStatsResult
         const doResolve = () => {
           if (!resolved) {
             resolved = true;
+            if (startedRef.current) {
+              endStatsFetch();
+              startedRef.current = false;
+            }
             resolve(latestStats);
           }
         };
@@ -54,6 +68,10 @@ export function useNoteStats(noteId: string, enabled = true): UseNoteStatsResult
             // Resolve quickly to not block UI
             if (!resolved) {
               resolved = true;
+              if (startedRef.current) {
+                endStatsFetch();
+                startedRef.current = false;
+              }
               resolve(newStats);
             }
           },

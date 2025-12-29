@@ -55,9 +55,10 @@ export function ImageGallery({ images, className }: ImageGalleryProps) {
             alt={img.alt || ''}
             width={img.dimensions?.width || 800}
             height={img.dimensions?.height || 600}
+            sizes="(max-width: 768px) 100vw, 800px"
             className="max-w-full h-auto max-h-96 object-contain hover:opacity-90 transition-opacity"
             onError={() => handleError(0)}
-            unoptimized
+            loading="lazy"
           />
         </div>
         <ImageModal
@@ -88,9 +89,10 @@ export function ImageGallery({ images, className }: ImageGalleryProps) {
                   alt={img.alt || ''}
                   width={400}
                   height={400}
+                  sizes="(max-width: 768px) 50vw, 400px"
                   className="w-full h-full object-cover hover:opacity-90 transition-opacity"
                   onError={() => handleError(i)}
-                  unoptimized
+                  loading="lazy"
                 />
               </div>
             )
@@ -121,9 +123,10 @@ export function ImageGallery({ images, className }: ImageGalleryProps) {
                 alt={images[0].alt || ''}
                 width={600}
                 height={600}
+                sizes="(max-width: 768px) 66vw, 600px"
                 className="w-full h-full object-cover hover:opacity-90 transition-opacity"
                 onError={() => handleError(0)}
-                unoptimized
+                loading="lazy"
               />
             </div>
           )}
@@ -139,9 +142,10 @@ export function ImageGallery({ images, className }: ImageGalleryProps) {
                   alt={img.alt || ''}
                   width={300}
                   height={300}
+                  sizes="(max-width: 768px) 33vw, 300px"
                   className="w-full h-full object-cover hover:opacity-90 transition-opacity"
                   onError={() => handleError(i + 1)}
-                  unoptimized
+                  loading="lazy"
                 />
               </div>
             )
@@ -176,9 +180,10 @@ export function ImageGallery({ images, className }: ImageGalleryProps) {
                 alt={img.alt || ''}
                 width={400}
                 height={400}
+                sizes="(max-width: 768px) 50vw, 400px"
                 className="w-full h-full object-cover hover:opacity-90 transition-opacity"
                 onError={() => handleError(i)}
-                unoptimized
+                loading="lazy"
               />
               {i === 3 && remainingCount > 0 && (
                 <div className="absolute inset-0 bg-black/60 flex items-center justify-center">

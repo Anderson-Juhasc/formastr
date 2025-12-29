@@ -41,16 +41,19 @@ export function Avatar({ src, alt, size = 'md', className, onClick }: AvatarProp
     return fallback;
   }
 
+  const pixelSize = size === 'xl' ? 128 : size === 'lg' ? 80 : size === 'md' ? 48 : size === 'sm' ? 32 : 24;
+
   return (
     <Image
       src={src}
       alt={alt}
-      width={size === 'xl' ? 128 : size === 'lg' ? 80 : size === 'md' ? 48 : size === 'sm' ? 32 : 24}
-      height={size === 'xl' ? 128 : size === 'lg' ? 80 : size === 'md' ? 48 : size === 'sm' ? 32 : 24}
+      width={pixelSize}
+      height={pixelSize}
+      sizes={`${pixelSize}px`}
       className={cn('rounded-full object-cover', sizeClasses[size], clickableClass, className)}
       onError={() => setError(true)}
       onClick={onClick}
-      unoptimized
+      loading="lazy"
     />
   );
 }

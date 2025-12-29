@@ -109,8 +109,9 @@ export function ImageModal({ isOpen, onClose, images, alt = 'Image', initialInde
           alt={`${alt} ${images.length > 1 ? currentIndex + 1 : ''}`}
           width={1200}
           height={800}
+          sizes="90vw"
           className="max-w-[90vw] max-h-[90vh] w-auto h-auto object-contain"
-          unoptimized
+          priority
         />
       </div>
 
