@@ -1,8 +1,7 @@
 import { NDKSubscriptionCacheUsage } from '@nostr-dev-kit/ndk';
 import { ensureConnected, safeSubscribe } from './index';
 import { parseRelayList, RelayList, RELAY_LIST_KIND } from '../nostr/nips/nip65';
-
-const RELAY_FETCH_TIMEOUT = 8000; // 8 seconds timeout
+import { RELAY_FETCH_TIMEOUT } from './constants';
 
 export function fetchRelayListStreaming(
   pubkey: string,

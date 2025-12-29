@@ -45,6 +45,7 @@ export function useReplies(noteId: string | null, enabled = true): UseRepliesRes
   const pendingPubkeysRef = useRef<Set<string>>(new Set());
   const batchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fetchedPubkeysRef = useRef<Set<string>>(new Set());
+  const cancelledRef = useRef(false);
 
   const queryKey = ['replies', noteId];
 
@@ -55,6 +56,9 @@ export function useReplies(noteId: string | null, enabled = true): UseRepliesRes
     }
 
     batchTimeoutRef.current = setTimeout(() => {
+      // Guard against updates after unmount
+      if (cancelledRef.current) return;
+
       const pubkeys = Array.from(pendingPubkeysRef.current);
       pendingPubkeysRef.current = new Set();
 
@@ -69,6 +73,8 @@ export function useReplies(noteId: string | null, enabled = true): UseRepliesRes
       const { cancel } = fetchProfilesBatchStreaming(
         pubkeys,
         (pk, profile) => {
+          // Guard against updates after unmount
+          if (cancelledRef.current) return;
           setReplies((prev) =>
             prev.map((r) => (r.note.pubkey === pk ? { ...r, author: profile } : r))
           );
@@ -157,11 +163,14 @@ export function useReplies(noteId: string | null, enabled = true): UseRepliesRes
   // Reset state when noteId changes and cleanup on unmount
   useEffect(() => {
     // Reset state for new noteId
+    cancelledRef.current = false;
     setReplies([]);
     pendingPubkeysRef.current.clear();
     fetchedPubkeysRef.current.clear();
 
     return () => {
+      // Mark as cancelled to prevent state updates after unmount
+      cancelledRef.current = true;
       // Cleanup on unmount or noteId change
       cancelBatchRef.current?.();
       cancelBatchRef.current = null;

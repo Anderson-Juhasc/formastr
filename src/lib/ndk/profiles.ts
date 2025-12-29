@@ -3,6 +3,7 @@ import { nip05 } from 'nostr-tools';
 import { Profile } from '@/types/nostr';
 import { hexToNpub } from '../nostr/keys';
 import { ensureConnected, safeSubscribe } from './index';
+import { EOSE_DELAY } from './constants';
 
 function parseProfileEvent(event: NDKEvent, pubkey: string): Profile {
   let profileData: Record<string, unknown> = {};
@@ -98,7 +99,7 @@ export function fetchProfileStreaming(
         sub?.stop();
         sub = null;
         onComplete();
-      }, 1000);
+      }, EOSE_DELAY);
     });
   }).catch(() => {
     if (!cancelled) {
@@ -216,7 +217,7 @@ export function fetchProfilesBatchStreaming(
         sub = null;
         latestCreatedAt.clear();
         onComplete();
-      }, 1000);
+      }, EOSE_DELAY);
     });
   }).catch(() => {
     if (!cancelled) {

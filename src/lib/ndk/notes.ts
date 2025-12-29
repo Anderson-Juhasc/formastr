@@ -1,6 +1,7 @@
 import { NDKEvent, NDKSubscription, NDKSubscriptionCacheUsage } from '@nostr-dev-kit/ndk';
 import { Note } from '@/types/nostr';
 import { ensureConnected, safeSubscribe } from './index';
+import { EOSE_DELAY, SINGLE_ITEM_TIMEOUT } from './constants';
 
 function eventToNote(event: NDKEvent): Note {
   return {
@@ -70,7 +71,7 @@ export function fetchNotesStreaming(
         sub = null;
         seen.clear();
         onComplete();
-      }, 1500);
+      }, EOSE_DELAY);
     });
   }).catch(() => {
     if (!cancelled) {
@@ -175,7 +176,7 @@ export function fetchNoteStreaming(
           sub?.stop();
           sub = null;
           onComplete();
-        }, 2000);
+        }, SINGLE_ITEM_TIMEOUT);
       }
     });
   }).catch(() => {
@@ -279,7 +280,7 @@ export function fetchRepliesStreaming(
         sub = null;
         seen.clear();
         onComplete();
-      }, 1500);
+      }, EOSE_DELAY);
     });
   }).catch(() => {
     if (!cancelled) {

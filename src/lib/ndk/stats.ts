@@ -1,5 +1,6 @@
 import { NDKEvent, NDKSubscription, NDKSubscriptionCacheUsage } from '@nostr-dev-kit/ndk';
 import { ensureConnected, safeSubscribe } from './index';
+import { EOSE_DELAY } from './constants';
 
 export interface NoteStats {
   replies: number;
@@ -64,7 +65,7 @@ export function fetchNoteStatsStreaming(
         if (cancelled) return;
         cleanup();
         onComplete();
-      }, 1000);
+      }, EOSE_DELAY);
     }
   };
 
