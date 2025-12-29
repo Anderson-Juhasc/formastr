@@ -40,8 +40,11 @@ export function Avatar({ src, alt, size = 'md', className, onClick }: AvatarProp
     </div>
   );
 
+  // Clean and validate URL
+  const cleanSrc = src?.trim();
+
   // Show fallback for missing, errored, or insecure URLs
-  if (!src || error || !isSecureUrl(src)) {
+  if (!cleanSrc || error || !isSecureUrl(cleanSrc)) {
     return fallback;
   }
 
@@ -49,7 +52,7 @@ export function Avatar({ src, alt, size = 'md', className, onClick }: AvatarProp
 
   return (
     <Image
-      src={src}
+      src={cleanSrc}
       alt={alt}
       width={pixelSize}
       height={pixelSize}

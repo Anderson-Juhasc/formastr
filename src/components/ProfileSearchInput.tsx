@@ -2,11 +2,9 @@
 
 import { useState, useRef, useEffect, memo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Input } from '@/components/ui/Input';
-import { Button } from '@/components/ui/Button';
+import { useProfileSearch } from '@/hooks/useProfileSearch';
 import { Avatar } from '@/components/ui/Avatar';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { useProfileSearch } from '@/hooks/useProfileSearch';
 import { formatNpub } from '@/lib/utils';
 import { Profile } from '@/types/nostr';
 
@@ -62,9 +60,8 @@ const SearchResultItem = memo(function SearchResultItem({
   );
 });
 
-export function SearchBar() {
+export function ProfileSearchInput() {
   const [query, setQuery] = useState('');
-  const [error, setError] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -73,44 +70,11 @@ export function SearchBar() {
 
   const { results, loading, search, clear } = useProfileSearch();
 
-  // Navigate to profile
-  const navigateToProfile = (identifier: string) => {
-    setQuery('');
-    setError(null);
-    clear();
-    setIsOpen(false);
-    router.push(`/${encodeURIComponent(identifier)}`);
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmed = query.trim();
-
-    if (!trimmed) {
-      return;
-    }
-
-    // If there's a selected result, navigate to it
-    if (selectedIndex >= 0 && results[selectedIndex]) {
-      navigateToProfile(results[selectedIndex].npub);
-      return;
-    }
-
-    if (!isValidIdentifier(trimmed)) {
-      setError('Select a user from results or enter a valid npub, nprofile, or NIP-05');
-      return;
-    }
-
-    setError(null);
-    const identifier = stripNostrPrefix(trimmed);
-    navigateToProfile(identifier);
-  };
-
+  // Handle input change
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setQuery(value);
     setSelectedIndex(-1);
-    if (error) setError(null);
 
     if (value.trim().length >= 2) {
       search(value);
@@ -118,6 +82,32 @@ export function SearchBar() {
     } else {
       clear();
       setIsOpen(false);
+    }
+  };
+
+  // Navigate to profile
+  const navigateToProfile = (identifier: string) => {
+    setQuery('');
+    clear();
+    setIsOpen(false);
+    router.push(`/${encodeURIComponent(identifier)}`);
+  };
+
+  // Handle form submit (direct identifier input)
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = query.trim();
+
+    // If there's a selected result, navigate to it
+    if (selectedIndex >= 0 && results[selectedIndex]) {
+      navigateToProfile(results[selectedIndex].npub);
+      return;
+    }
+
+    // Otherwise check if it's a valid identifier
+    if (trimmed && isValidIdentifier(trimmed)) {
+      const identifier = stripNostrPrefix(trimmed);
+      navigateToProfile(identifier);
     }
   };
 
@@ -161,65 +151,69 @@ export function SearchBar() {
   const showDropdown = isOpen && (results.length > 0 || loading);
 
   return (
-    <form onSubmit={handleSubmit} className="w-full max-w-xl">
+    <form onSubmit={handleSubmit} className="relative flex-1 max-w-xs">
       <div className="relative">
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <Input
-              ref={inputRef}
-              type="text"
-              value={query}
-              onChange={handleChange}
-              onKeyDown={handleKeyDown}
-              onFocus={() => {
-                if (results.length > 0) setIsOpen(true);
-              }}
-              placeholder="Search by name, npub, nprofile, or NIP-05"
-              className={error ? 'border-destructive' : ''}
-              autoComplete="off"
-            />
-            {loading && (
-              <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-              </div>
-            )}
-          </div>
-          <Button type="submit">Search</Button>
-        </div>
-
-        {showDropdown && (
-          <div
-            ref={dropdownRef}
-            className="absolute top-full left-0 right-0 mt-1 bg-card border-2 border-border rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto"
-            style={{ right: '80px' }} // Account for button width
-          >
-            {results.length > 0 ? (
-              results.map((profile, index) => (
-                <SearchResultItem
-                  key={profile.pubkey}
-                  profile={profile}
-                  onClick={() => navigateToProfile(profile.npub)}
-                  isSelected={index === selectedIndex}
-                />
-              ))
-            ) : loading ? (
-              <div className="p-3 space-y-2">
-                {[...Array(3)].map((_, i) => (
-                  <div key={i} className="flex items-center gap-3">
-                    <Skeleton className="w-8 h-8 rounded-full" />
-                    <div className="flex-1 space-y-1">
-                      <Skeleton className="h-4 w-24" />
-                      <Skeleton className="h-3 w-32" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : null}
+        <svg
+          className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+          />
+        </svg>
+        <input
+          ref={inputRef}
+          type="text"
+          value={query}
+          onChange={handleChange}
+          onKeyDown={handleKeyDown}
+          onFocus={() => {
+            if (results.length > 0) setIsOpen(true);
+          }}
+          placeholder="Search users..."
+          className="w-full pl-9 pr-3 py-1.5 text-sm border-2 border-input rounded-lg bg-card text-card-foreground placeholder-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors shadow-sm"
+          autoComplete="off"
+        />
+        {loading && (
+          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+            <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
           </div>
         )}
       </div>
-      {error && (
-        <p className="mt-1 text-sm text-destructive font-medium">{error}</p>
+
+      {showDropdown && (
+        <div
+          ref={dropdownRef}
+          className="absolute top-full left-0 right-0 mt-1 bg-card border-2 border-border rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto"
+        >
+          {results.length > 0 ? (
+            results.map((profile, index) => (
+              <SearchResultItem
+                key={profile.pubkey}
+                profile={profile}
+                onClick={() => navigateToProfile(profile.npub)}
+                isSelected={index === selectedIndex}
+              />
+            ))
+          ) : loading ? (
+            <div className="p-3 space-y-2">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <Skeleton className="w-8 h-8 rounded-full" />
+                  <div className="flex-1 space-y-1">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-3 w-32" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
       )}
     </form>
   );

@@ -6,7 +6,7 @@ import { CacheInitializer } from '@/components/CacheInitializer';
 import { QueryProvider } from '@/components/QueryProvider';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
-import { HeaderSearch } from '@/components/HeaderSearch';
+import { ProfileSearchInput } from '@/components/ProfileSearchInput';
 import { PageErrorBoundary } from '@/components/PageErrorBoundary';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -151,7 +151,7 @@ export default function RootLayout({
                 >
                   Formastr
                 </Link>
-                <HeaderSearch />
+                <ProfileSearchInput />
                 <ThemeToggle />
               </nav>
             </header>
