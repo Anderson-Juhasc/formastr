@@ -215,12 +215,14 @@ function RenderBlockPart({ part, depth }: { part: ParsedPart; depth: number }) {
   switch (part.type) {
     case 'video':
       return (
-        <video
-          src={part.href}
-          controls
-          className="max-w-full max-h-96 rounded-lg"
-          preload="metadata"
-        />
+        <div className="flex justify-center overflow-hidden rounded-xl bg-muted">
+          <video
+            src={part.href}
+            controls
+            className="max-w-full h-auto max-h-96 object-contain"
+            preload="metadata"
+          />
+        </div>
       );
 
     case 'youtube':
