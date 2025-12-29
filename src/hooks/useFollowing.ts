@@ -119,8 +119,9 @@ export function useFollowing(pubkey: string | null, enabled = true): UseFollowin
       lastPubkeyRef.current = pubkey;
       setFollowing([]);
       setCursor(0);
-      displayedRef.current = new Set();
+      displayedRef.current.clear();
       cancelBatchRef.current?.();
+      cancelBatchRef.current = null;
     }
 
     // Load first batch when follow list arrives
@@ -129,15 +130,13 @@ export function useFollowing(pubkey: string | null, enabled = true): UseFollowin
       loadBatch(firstBatch);
       setCursor(PAGE_SIZE);
     }
-  }, [pubkey, followList, loadBatch]);
 
-  // Cleanup on unmount
-  useEffect(() => {
     return () => {
       cancelBatchRef.current?.();
+      cancelBatchRef.current = null;
       displayedRef.current.clear();
     };
-  }, []);
+  }, [pubkey, followList, loadBatch]);
 
   const loadMore = useCallback(() => {
     if (loadingMore || cursor >= followList.length) return;

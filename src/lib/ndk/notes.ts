@@ -33,6 +33,7 @@ export function fetchNotesStreaming(
   let eoseReceived = false;
   let sub: NDKSubscription | null = null;
   let cancelled = false;
+  let eoseTimeout: ReturnType<typeof setTimeout> | null = null;
 
   // Start subscription after ensuring connection
   ensureConnected().then(() => {
@@ -41,7 +42,7 @@ export function fetchNotesStreaming(
     sub = safeSubscribe(
       { kinds: [1], authors: [pubkey], limit },
       {
-        closeOnEose: false,
+        closeOnEose: true,
         cacheUsage: NDKSubscriptionCacheUsage.PARALLEL,
       }
     );
@@ -52,6 +53,7 @@ export function fetchNotesStreaming(
     }
 
     sub.on('event', (event: NDKEvent) => {
+      if (cancelled) return;
       if (!seen.has(event.id)) {
         seen.add(event.id);
         const note = eventToNote(event);
@@ -60,22 +62,32 @@ export function fetchNotesStreaming(
     });
 
     sub.on('eose', () => {
-      if (!eoseReceived) {
-        eoseReceived = true;
-        setTimeout(() => {
-          sub?.stop();
-          onComplete();
-        }, 1500);
-      }
+      if (cancelled || eoseReceived) return;
+      eoseReceived = true;
+      eoseTimeout = setTimeout(() => {
+        if (cancelled) return;
+        sub?.stop();
+        sub = null;
+        seen.clear();
+        onComplete();
+      }, 1500);
     });
   }).catch(() => {
-    onComplete(); // Complete on error
+    if (!cancelled) {
+      onComplete();
+    }
   });
 
   return {
     cancel: () => {
       cancelled = true;
+      if (eoseTimeout) {
+        clearTimeout(eoseTimeout);
+        eoseTimeout = null;
+      }
       sub?.stop();
+      sub = null;
+      seen.clear();
     },
   };
 }
@@ -124,6 +136,7 @@ export function fetchNoteStreaming(
   let eoseReceived = false;
   let sub: NDKSubscription | null = null;
   let cancelled = false;
+  let eoseTimeout: ReturnType<typeof setTimeout> | null = null;
 
   ensureConnected().then(() => {
     if (cancelled) return;
@@ -131,7 +144,7 @@ export function fetchNoteStreaming(
     sub = safeSubscribe(
       { ids: [noteId], limit: 1 },
       {
-        closeOnEose: false,
+        closeOnEose: true,
         cacheUsage: NDKSubscriptionCacheUsage.PARALLEL,
       }
     );
@@ -142,34 +155,44 @@ export function fetchNoteStreaming(
     }
 
     sub.on('event', (event: NDKEvent) => {
+      if (cancelled) return;
       if (!found && event.id === noteId) {
         found = true;
         const note = eventToNote(event);
         onNote(note);
         sub?.stop();
+        sub = null;
         onComplete();
       }
     });
 
     sub.on('eose', () => {
-      if (!eoseReceived) {
-        eoseReceived = true;
-        if (!found) {
-          setTimeout(() => {
-            sub?.stop();
-            onComplete();
-          }, 2000);
-        }
+      if (cancelled || eoseReceived) return;
+      eoseReceived = true;
+      if (!found) {
+        eoseTimeout = setTimeout(() => {
+          if (cancelled) return;
+          sub?.stop();
+          sub = null;
+          onComplete();
+        }, 2000);
       }
     });
   }).catch(() => {
-    onComplete();
+    if (!cancelled) {
+      onComplete();
+    }
   });
 
   return {
     cancel: () => {
       cancelled = true;
+      if (eoseTimeout) {
+        clearTimeout(eoseTimeout);
+        eoseTimeout = null;
+      }
       sub?.stop();
+      sub = null;
     },
   };
 }
@@ -218,6 +241,7 @@ export function fetchRepliesStreaming(
   let eoseReceived = false;
   let sub: NDKSubscription | null = null;
   let cancelled = false;
+  let eoseTimeout: ReturnType<typeof setTimeout> | null = null;
 
   ensureConnected().then(() => {
     if (cancelled) return;
@@ -225,7 +249,7 @@ export function fetchRepliesStreaming(
     sub = safeSubscribe(
       { kinds: [1], '#e': [noteId], limit },
       {
-        closeOnEose: false,
+        closeOnEose: true,
         cacheUsage: NDKSubscriptionCacheUsage.PARALLEL,
       }
     );
@@ -236,6 +260,7 @@ export function fetchRepliesStreaming(
     }
 
     sub.on('event', (event: NDKEvent) => {
+      if (cancelled) return;
       const eTags = event.tags.filter((t) => t[0] === 'e');
       const isReply = eTags.some((t) => t[1] === noteId);
 
@@ -246,22 +271,32 @@ export function fetchRepliesStreaming(
     });
 
     sub.on('eose', () => {
-      if (!eoseReceived) {
-        eoseReceived = true;
-        setTimeout(() => {
-          sub?.stop();
-          onComplete();
-        }, 1500);
-      }
+      if (cancelled || eoseReceived) return;
+      eoseReceived = true;
+      eoseTimeout = setTimeout(() => {
+        if (cancelled) return;
+        sub?.stop();
+        sub = null;
+        seen.clear();
+        onComplete();
+      }, 1500);
     });
   }).catch(() => {
-    onComplete();
+    if (!cancelled) {
+      onComplete();
+    }
   });
 
   return {
     cancel: () => {
       cancelled = true;
+      if (eoseTimeout) {
+        clearTimeout(eoseTimeout);
+        eoseTimeout = null;
+      }
       sub?.stop();
+      sub = null;
+      seen.clear();
     },
   };
 }

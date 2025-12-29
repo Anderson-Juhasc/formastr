@@ -16,6 +16,9 @@ export const ndk = new NDK({
 // Connection promise for awaiting
 let connectionPromise: Promise<void> | null = null;
 
+// Shutdown flag to prevent new connections during cleanup
+let isShuttingDown = false;
+
 /**
  * Connect to relays (idempotent - safe to call multiple times)
  * Returns a promise that resolves when connected
@@ -37,11 +40,37 @@ export async function connectNDK(): Promise<void> {
  * Call this before any subscription
  */
 export async function ensureConnected(): Promise<void> {
+  if (isShuttingDown) {
+    throw new Error('NDK is shutting down');
+  }
   if (!connectionPromise) {
     await connectNDK();
   } else {
     await connectionPromise;
   }
+}
+
+/**
+ * Disconnect NDK and cleanup all resources
+ * Call this on app unmount or before page unload
+ */
+export async function disconnectNDK(): Promise<void> {
+  isShuttingDown = true;
+
+  // Close all relay connections
+  try {
+    for (const relay of ndk.pool.relays.values()) {
+      relay.disconnect();
+    }
+  } catch {
+    // Ignore errors during cleanup
+  }
+
+  // Clear connection promise
+  connectionPromise = null;
+
+  // Reset shutdown flag after cleanup
+  isShuttingDown = false;
 }
 
 /**

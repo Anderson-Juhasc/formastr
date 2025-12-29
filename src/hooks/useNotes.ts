@@ -98,6 +98,9 @@ export function useNotes(pubkey: string | null, limit = 20, enabled = true): Use
 
         // Store cancel for cleanup
         abortControllerRef.current = { abort: cancel } as AbortController;
+
+        // Cancel subscription if query is aborted (e.g., by React Query gcTime)
+        signal?.addEventListener('abort', cancel);
       });
     },
     enabled: !!pubkey && enabled,
@@ -107,6 +110,8 @@ export function useNotes(pubkey: string | null, limit = 20, enabled = true): Use
   useEffect(() => {
     return () => {
       abortControllerRef.current?.abort();
+      abortControllerRef.current = null;
+      seenRef.current.clear();
     };
   }, [pubkey, limit]);
 

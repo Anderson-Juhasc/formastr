@@ -154,22 +154,25 @@ export function useReplies(noteId: string | null, enabled = true): UseRepliesRes
     enabled: !!noteId && enabled,
   });
 
-  // Reset state when noteId changes
+  // Reset state when noteId changes and cleanup on unmount
   useEffect(() => {
+    // Reset state for new noteId
     setReplies([]);
-    pendingPubkeysRef.current = new Set();
-    fetchedPubkeysRef.current = new Set();
-  }, [noteId]);
+    pendingPubkeysRef.current.clear();
+    fetchedPubkeysRef.current.clear();
 
-  // Cleanup on unmount
-  useEffect(() => {
     return () => {
+      // Cleanup on unmount or noteId change
       cancelBatchRef.current?.();
+      cancelBatchRef.current = null;
       if (batchTimeoutRef.current) {
         clearTimeout(batchTimeoutRef.current);
+        batchTimeoutRef.current = null;
       }
+      pendingPubkeysRef.current.clear();
+      fetchedPubkeysRef.current.clear();
     };
-  }, []);
+  }, [noteId]);
 
   return {
     replies,

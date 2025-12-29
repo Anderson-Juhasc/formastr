@@ -57,6 +57,7 @@ export function fetchProfileStreaming(
   let eoseReceived = false;
   let sub: NDKSubscription | null = null;
   let cancelled = false;
+  let eoseTimeout: ReturnType<typeof setTimeout> | null = null;
 
   ensureConnected().then(() => {
     if (cancelled) return;
@@ -64,7 +65,7 @@ export function fetchProfileStreaming(
     sub = safeSubscribe(
       { kinds: [0], authors: [pubkey], limit: 1 },
       {
-        closeOnEose: false,
+        closeOnEose: true,
         cacheUsage: NDKSubscriptionCacheUsage.PARALLEL,
       }
     );
@@ -76,6 +77,7 @@ export function fetchProfileStreaming(
     }
 
     sub.on('event', (event: NDKEvent) => {
+      if (cancelled) return;
       const createdAt = event.created_at || 0;
       if (createdAt > latestCreatedAt) {
         latestCreatedAt = createdAt;
@@ -86,26 +88,34 @@ export function fetchProfileStreaming(
     });
 
     sub.on('eose', () => {
-      if (!eoseReceived) {
-        eoseReceived = true;
-        setTimeout(() => {
-          if (!foundProfile) {
-            onProfile(createEmptyProfile(pubkey));
-          }
-          sub?.stop();
-          onComplete();
-        }, 1000);
-      }
+      if (cancelled || eoseReceived) return;
+      eoseReceived = true;
+      eoseTimeout = setTimeout(() => {
+        if (cancelled) return;
+        if (!foundProfile) {
+          onProfile(createEmptyProfile(pubkey));
+        }
+        sub?.stop();
+        sub = null;
+        onComplete();
+      }, 1000);
     });
   }).catch(() => {
-    onProfile(createEmptyProfile(pubkey));
-    onComplete();
+    if (!cancelled) {
+      onProfile(createEmptyProfile(pubkey));
+      onComplete();
+    }
   });
 
   return {
     cancel: () => {
       cancelled = true;
+      if (eoseTimeout) {
+        clearTimeout(eoseTimeout);
+        eoseTimeout = null;
+      }
       sub?.stop();
+      sub = null;
     },
   };
 }
@@ -166,6 +176,7 @@ export function fetchProfilesBatchStreaming(
   let eoseReceived = false;
   let sub: NDKSubscription | null = null;
   let cancelled = false;
+  let eoseTimeout: ReturnType<typeof setTimeout> | null = null;
 
   ensureConnected().then(() => {
     if (cancelled) return;
@@ -173,7 +184,7 @@ export function fetchProfilesBatchStreaming(
     sub = safeSubscribe(
       { kinds: [0], authors: uniquePubkeys },
       {
-        closeOnEose: false,
+        closeOnEose: true,
         cacheUsage: NDKSubscriptionCacheUsage.PARALLEL,
       }
     );
@@ -184,6 +195,7 @@ export function fetchProfilesBatchStreaming(
     }
 
     sub.on('event', (event: NDKEvent) => {
+      if (cancelled) return;
       const pubkey = event.pubkey;
       const createdAt = event.created_at || 0;
       const existingCreatedAt = latestCreatedAt.get(pubkey) || 0;
@@ -196,22 +208,32 @@ export function fetchProfilesBatchStreaming(
     });
 
     sub.on('eose', () => {
-      if (!eoseReceived) {
-        eoseReceived = true;
-        setTimeout(() => {
-          sub?.stop();
-          onComplete();
-        }, 1000);
-      }
+      if (cancelled || eoseReceived) return;
+      eoseReceived = true;
+      eoseTimeout = setTimeout(() => {
+        if (cancelled) return;
+        sub?.stop();
+        sub = null;
+        latestCreatedAt.clear();
+        onComplete();
+      }, 1000);
     });
   }).catch(() => {
-    onComplete();
+    if (!cancelled) {
+      onComplete();
+    }
   });
 
   return {
     cancel: () => {
       cancelled = true;
+      if (eoseTimeout) {
+        clearTimeout(eoseTimeout);
+        eoseTimeout = null;
+      }
       sub?.stop();
+      sub = null;
+      latestCreatedAt.clear();
     },
   };
 }

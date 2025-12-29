@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { connectNDK } from '@/lib/ndk';
-import { startCleanupScheduler } from '@/lib/ndk/cleanup';
+import { startCleanupScheduler, stopCleanupScheduler } from '@/lib/ndk/cleanup';
 
 export function CacheInitializer() {
   useEffect(() => {
@@ -10,6 +10,10 @@ export function CacheInitializer() {
       console.error('[CacheInitializer] Failed to connect NDK:', error);
     });
     startCleanupScheduler();
+
+    return () => {
+      stopCleanupScheduler();
+    };
   }, []);
 
   return null;

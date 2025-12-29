@@ -55,6 +55,7 @@ export function fetchRelayListStreaming(
     }
 
     sub.on('event', (event) => {
+      if (cancelled) return;
       if (!found && event.pubkey === pubkey) {
         found = true;
         const relayList = parseRelayList(event.tags);
@@ -63,12 +64,15 @@ export function fetchRelayListStreaming(
     });
 
     sub.on('eose', () => {
+      if (cancelled) return;
       clearTimeout(timeoutId);
       complete();
     });
   }).catch(() => {
-    clearTimeout(timeoutId);
-    complete();
+    if (!cancelled) {
+      clearTimeout(timeoutId);
+      complete();
+    }
   });
 
   return {
@@ -76,6 +80,7 @@ export function fetchRelayListStreaming(
       cancelled = true;
       clearTimeout(timeoutId);
       sub?.stop();
+      sub = null;
     },
   };
 }

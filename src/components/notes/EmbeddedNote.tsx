@@ -109,26 +109,25 @@ export function EmbeddedNote({ noteId, depth = 0 }: EmbeddedNoteProps) {
     }
 
     let cancelled = false;
-    let cancelProfile: (() => void) | null = null;
+    const cancellations: Array<() => void> = [];
     noteReceivedRef.current = false;
 
     const { cancel: cancelNote } = fetchNoteStreaming(
       hexId,
       (noteData) => {
-        if (!cancelled) {
-          noteReceivedRef.current = true;
-          setNote(noteData);
-          setLoading(false);
+        if (cancelled) return;
+        noteReceivedRef.current = true;
+        setNote(noteData);
+        setLoading(false);
 
-          const { cancel } = fetchProfileStreaming(
-            noteData.pubkey,
-            (profile) => {
-              if (!cancelled) setAuthor(profile);
-            },
-            () => {}
-          );
-          cancelProfile = cancel;
-        }
+        const { cancel: cancelProfile } = fetchProfileStreaming(
+          noteData.pubkey,
+          (profile) => {
+            if (!cancelled) setAuthor(profile);
+          },
+          () => {}
+        );
+        cancellations.push(cancelProfile);
       },
       () => {
         if (!cancelled && !noteReceivedRef.current) {
@@ -139,10 +138,14 @@ export function EmbeddedNote({ noteId, depth = 0 }: EmbeddedNoteProps) {
       relayHints
     );
 
+    cancellations.push(cancelNote);
+
     return () => {
       cancelled = true;
-      cancelNote();
-      cancelProfile?.();
+      for (const cancel of cancellations) {
+        cancel();
+      }
+      cancellations.length = 0;
     };
   }, [hexId, relayHints]);
 

@@ -26,16 +26,27 @@ export function useNoteStats(noteId: string, enabled = true): UseNoteStatsResult
 
   const { data: stats = EMPTY_STATS, isLoading } = useQuery({
     queryKey,
-    queryFn: () => {
+    queryFn: ({ signal }) => {
       if (!noteId) return EMPTY_STATS;
 
       return new Promise<NoteStats>((resolve) => {
         let latestStats = { ...EMPTY_STATS };
         let resolved = false;
 
+        const doResolve = () => {
+          if (!resolved) {
+            resolved = true;
+            resolve(latestStats);
+          }
+        };
+
+        // Resolve with current data if aborted
+        signal?.addEventListener('abort', doResolve);
+
         const { cancel } = fetchNoteStatsStreaming(
           noteId,
           (newStats) => {
+            if (signal?.aborted) return;
             latestStats = newStats;
             // Update cache for streaming updates - stats tick up
             queryClient.setQueryData(queryKey, newStats);
@@ -48,14 +59,14 @@ export function useNoteStats(noteId: string, enabled = true): UseNoteStatsResult
           },
           () => {
             // EOSE: resolve if not already resolved
-            if (!resolved) {
-              resolved = true;
-              resolve(latestStats);
-            }
+            doResolve();
           }
         );
 
         cancelRef.current = cancel;
+
+        // Cancel subscription if query is aborted (e.g., by React Query gcTime)
+        signal?.addEventListener('abort', cancel);
       });
     },
     enabled: !!noteId && enabled,
@@ -67,6 +78,7 @@ export function useNoteStats(noteId: string, enabled = true): UseNoteStatsResult
   useEffect(() => {
     return () => {
       cancelRef.current?.();
+      cancelRef.current = null;
     };
   }, [noteId]);
 

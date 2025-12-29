@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { fetchProfile } from '@/lib/ndk/profiles';
+import { fetchProfileStreaming } from '@/lib/ndk/profiles';
 
 interface MentionLinkProps {
   pubkey: string;
@@ -18,22 +18,18 @@ export function MentionLink({ pubkey, href, fallback }: MentionLinkProps) {
       return;
     }
 
-    let cancelled = false;
-
-    fetchProfile(pubkey)
-      .then((profile) => {
-        if (!cancelled && profile) {
-          const name = profile.displayName || profile.name;
-          if (name) {
-            setDisplayName('@' + name);
-          }
+    const { cancel } = fetchProfileStreaming(
+      pubkey,
+      (profile) => {
+        const name = profile.displayName || profile.name;
+        if (name) {
+          setDisplayName('@' + name);
         }
-      })
-      .catch(() => {});
+      },
+      () => {} // onComplete
+    );
 
-    return () => {
-      cancelled = true;
-    };
+    return cancel;
   }, [pubkey]);
 
   return (
@@ -60,22 +56,18 @@ export function MentionSpan({ pubkey, href, fallback }: MentionSpanProps) {
       return;
     }
 
-    let cancelled = false;
-
-    fetchProfile(pubkey)
-      .then((profile) => {
-        if (!cancelled && profile) {
-          const name = profile.displayName || profile.name;
-          if (name) {
-            setDisplayName('@' + name);
-          }
+    const { cancel } = fetchProfileStreaming(
+      pubkey,
+      (profile) => {
+        const name = profile.displayName || profile.name;
+        if (name) {
+          setDisplayName('@' + name);
         }
-      })
-      .catch(() => {});
+      },
+      () => {} // onComplete
+    );
 
-    return () => {
-      cancelled = true;
-    };
+    return cancel;
   }, [pubkey]);
 
   return (

@@ -45,6 +45,7 @@ export function fetchFollowingStreaming(
   let eoseReceived = false;
   let sub: NDKSubscription | null = null;
   let cancelled = false;
+  let eoseTimeout: ReturnType<typeof setTimeout> | null = null;
 
   ensureConnected().then(() => {
     if (cancelled) return;
@@ -52,7 +53,7 @@ export function fetchFollowingStreaming(
     sub = safeSubscribe(
       { kinds: [3], authors: [pubkey], limit: 1 },
       {
-        closeOnEose: false,
+        closeOnEose: true,
         cacheUsage: NDKSubscriptionCacheUsage.PARALLEL,
       }
     );
@@ -64,6 +65,7 @@ export function fetchFollowingStreaming(
     }
 
     sub.on('event', (event: NDKEvent) => {
+      if (cancelled) return;
       // Keep the event with most tags (most complete contact list)
       // or newer if same tag count
       if (!latestEvent ||
@@ -77,26 +79,36 @@ export function fetchFollowingStreaming(
     });
 
     sub.on('eose', () => {
-      if (!eoseReceived) {
-        eoseReceived = true;
-        setTimeout(() => {
-          if (!latestEvent) {
-            onFollowing([]);
-          }
-          sub?.stop();
-          onComplete();
-        }, 1000);
-      }
+      if (cancelled || eoseReceived) return;
+      eoseReceived = true;
+      eoseTimeout = setTimeout(() => {
+        if (cancelled) return;
+        if (!latestEvent) {
+          onFollowing([]);
+        }
+        sub?.stop();
+        sub = null;
+        latestEvent = null;
+        onComplete();
+      }, 1000);
     });
   }).catch(() => {
-    onFollowing([]);
-    onComplete();
+    if (!cancelled) {
+      onFollowing([]);
+      onComplete();
+    }
   });
 
   return {
     cancel: () => {
       cancelled = true;
+      if (eoseTimeout) {
+        clearTimeout(eoseTimeout);
+        eoseTimeout = null;
+      }
       sub?.stop();
+      sub = null;
+      latestEvent = null;
     },
   };
 }
@@ -148,6 +160,22 @@ export function fetchFollowersStreaming(
   let sub: NDKSubscription | null = null;
   let cancelled = false;
   let lastEventTime = Date.now();
+  let checkCompleteTimeout: ReturnType<typeof setTimeout> | null = null;
+  let initialTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  const cleanup = () => {
+    if (checkCompleteTimeout) {
+      clearTimeout(checkCompleteTimeout);
+      checkCompleteTimeout = null;
+    }
+    if (initialTimeout) {
+      clearTimeout(initialTimeout);
+      initialTimeout = null;
+    }
+    sub?.stop();
+    sub = null;
+    seen.clear();
+  };
 
   ensureConnected().then(() => {
     if (cancelled) return;
@@ -157,7 +185,7 @@ export function fetchFollowersStreaming(
     sub = safeSubscribe(
       { kinds: [3], '#p': [pubkey] },
       {
-        closeOnEose: false,
+        closeOnEose: true,
         cacheUsage: NDKSubscriptionCacheUsage.PARALLEL,
       }
     );
@@ -168,6 +196,7 @@ export function fetchFollowersStreaming(
     }
 
     sub.on('event', (event: NDKEvent) => {
+      if (cancelled) return;
       lastEventTime = Date.now();
       if (!seen.has(event.pubkey) && seen.size < limit) {
         seen.add(event.pubkey);
@@ -176,31 +205,33 @@ export function fetchFollowersStreaming(
     });
 
     sub.on('eose', () => {
-      if (!eoseReceived) {
-        eoseReceived = true;
-        // Wait longer for slow relays to respond
-        // If we're still receiving events, keep waiting
-        const checkComplete = () => {
-          const timeSinceLastEvent = Date.now() - lastEventTime;
-          if (timeSinceLastEvent < 1000 && seen.size < limit) {
-            // Still receiving events, wait more
-            setTimeout(checkComplete, 500);
-          } else {
-            sub?.stop();
-            onComplete();
-          }
-        };
-        setTimeout(checkComplete, 2000);
-      }
+      if (cancelled || eoseReceived) return;
+      eoseReceived = true;
+      // Wait longer for slow relays to respond
+      // If we're still receiving events, keep waiting
+      const checkComplete = () => {
+        if (cancelled) return;
+        const timeSinceLastEvent = Date.now() - lastEventTime;
+        if (timeSinceLastEvent < 1000 && seen.size < limit) {
+          // Still receiving events, wait more
+          checkCompleteTimeout = setTimeout(checkComplete, 500);
+        } else {
+          cleanup();
+          onComplete();
+        }
+      };
+      initialTimeout = setTimeout(checkComplete, 2000);
     });
   }).catch(() => {
-    onComplete();
+    if (!cancelled) {
+      onComplete();
+    }
   });
 
   return {
     cancel: () => {
       cancelled = true;
-      sub?.stop();
+      cleanup();
     },
   };
 }

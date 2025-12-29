@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 
 interface ImageModalProps {
@@ -14,38 +14,43 @@ interface ImageModalProps {
 export function ImageModal({ isOpen, onClose, images, alt = 'Image', initialIndex = 0 }: ImageModalProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
 
-  const goNext = useCallback(() => {
-    setCurrentIndex((i) => (i + 1) % images.length);
-  }, [images.length]);
+  // Reset index when initialIndex changes
+  useEffect(() => {
+    if (isOpen) {
+      setCurrentIndex(initialIndex);
+    }
+  }, [isOpen, initialIndex]);
 
-  const goPrev = useCallback(() => {
-    setCurrentIndex((i) => (i - 1 + images.length) % images.length);
-  }, [images.length]);
+  // Handle keyboard events - define handler inside effect to avoid dependency issues
+  useEffect(() => {
+    if (!isOpen) return;
 
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent) => {
+    const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         onClose();
       } else if (e.key === 'ArrowRight' && images.length > 1) {
-        goNext();
+        setCurrentIndex((i) => (i + 1) % images.length);
       } else if (e.key === 'ArrowLeft' && images.length > 1) {
-        goPrev();
+        setCurrentIndex((i) => (i - 1 + images.length) % images.length);
       }
-    },
-    [onClose, images.length, goNext, goPrev]
-  );
+    };
 
-  useEffect(() => {
-    if (isOpen) {
-      document.addEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = 'hidden';
-      setCurrentIndex(initialIndex);
-    }
+    document.addEventListener('keydown', handleKeyDown);
+    document.body.style.overflow = 'hidden';
+
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = '';
     };
-  }, [isOpen, handleKeyDown, initialIndex]);
+  }, [isOpen, onClose, images.length]);
+
+  const goNext = () => {
+    setCurrentIndex((i) => (i + 1) % images.length);
+  };
+
+  const goPrev = () => {
+    setCurrentIndex((i) => (i - 1 + images.length) % images.length);
+  };
 
   if (!isOpen || images.length === 0) return null;
 

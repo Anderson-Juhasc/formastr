@@ -43,15 +43,26 @@ export function fetchNoteStatsStreaming(
   let completed = false;
   const subs: NDKSubscription[] = [];
   let cancelled = false;
+  let completeTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  const cleanup = () => {
+    for (const sub of subs) {
+      sub.stop();
+    }
+    subs.length = 0;
+    seenReplies.clear();
+    seenReposts.clear();
+    seenLikes.clear();
+    seenZaps.clear();
+  };
 
   const checkComplete = () => {
     eoseCount++;
     if (eoseCount >= 4 && !completed) {
       completed = true;
-      setTimeout(() => {
-        for (const sub of subs) {
-          sub.stop();
-        }
+      completeTimeout = setTimeout(() => {
+        if (cancelled) return;
+        cleanup();
         onComplete();
       }, 1000);
     }
@@ -64,12 +75,13 @@ export function fetchNoteStatsStreaming(
     const repliesSub = safeSubscribe(
       { kinds: [1], '#e': [noteId] },
       {
-        closeOnEose: false,
+        closeOnEose: true,
         cacheUsage: NDKSubscriptionCacheUsage.PARALLEL,
       }
     );
     if (repliesSub) {
       repliesSub.on('event', (event: NDKEvent) => {
+        if (cancelled) return;
         if (!seenReplies.has(event.id)) {
           seenReplies.add(event.id);
           stats.replies++;
@@ -86,12 +98,13 @@ export function fetchNoteStatsStreaming(
     const repostsSub = safeSubscribe(
       { kinds: [6], '#e': [noteId] },
       {
-        closeOnEose: false,
+        closeOnEose: true,
         cacheUsage: NDKSubscriptionCacheUsage.PARALLEL,
       }
     );
     if (repostsSub) {
       repostsSub.on('event', (event: NDKEvent) => {
+        if (cancelled) return;
         if (!seenReposts.has(event.id)) {
           seenReposts.add(event.id);
           stats.reposts++;
@@ -108,12 +121,13 @@ export function fetchNoteStatsStreaming(
     const likesSub = safeSubscribe(
       { kinds: [7], '#e': [noteId] },
       {
-        closeOnEose: false,
+        closeOnEose: true,
         cacheUsage: NDKSubscriptionCacheUsage.PARALLEL,
       }
     );
     if (likesSub) {
       likesSub.on('event', (event: NDKEvent) => {
+        if (cancelled) return;
         if (!seenLikes.has(event.id)) {
           seenLikes.add(event.id);
           stats.likes++;
@@ -130,12 +144,13 @@ export function fetchNoteStatsStreaming(
     const zapsSub = safeSubscribe(
       { kinds: [9735], '#e': [noteId] },
       {
-        closeOnEose: false,
+        closeOnEose: true,
         cacheUsage: NDKSubscriptionCacheUsage.PARALLEL,
       }
     );
     if (zapsSub) {
       zapsSub.on('event', (event: NDKEvent) => {
+        if (cancelled) return;
         if (!seenZaps.has(event.id)) {
           seenZaps.add(event.id);
           stats.zaps++;
@@ -158,15 +173,19 @@ export function fetchNoteStatsStreaming(
       checkComplete();
     }
   }).catch(() => {
-    onComplete();
+    if (!cancelled) {
+      onComplete();
+    }
   });
 
   return {
     cancel: () => {
       cancelled = true;
-      for (const sub of subs) {
-        sub.stop();
+      if (completeTimeout) {
+        clearTimeout(completeTimeout);
+        completeTimeout = null;
       }
+      cleanup();
     },
   };
 }
