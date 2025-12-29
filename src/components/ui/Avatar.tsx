@@ -20,6 +20,9 @@ const sizeClasses = {
   xl: 'w-32 h-32',
 };
 
+// Only allow HTTPS images for security
+const isSecureUrl = (url: string) => url.startsWith('https://');
+
 export function Avatar({ src, alt, size = 'md', className, onClick }: AvatarProps) {
   const [error, setError] = useState(false);
   const clickableClass = onClick ? 'cursor-pointer hover:opacity-90 transition-opacity' : '';
@@ -37,7 +40,8 @@ export function Avatar({ src, alt, size = 'md', className, onClick }: AvatarProp
     </div>
   );
 
-  if (!src || error) {
+  // Show fallback for missing, errored, or insecure URLs
+  if (!src || error || !isSecureUrl(src)) {
     return fallback;
   }
 

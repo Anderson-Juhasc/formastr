@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Image from 'next/image';
 
 interface ImageModalProps {
@@ -11,7 +11,13 @@ interface ImageModalProps {
   initialIndex?: number;
 }
 
-export function ImageModal({ isOpen, onClose, images, alt = 'Image', initialIndex = 0 }: ImageModalProps) {
+// Only allow HTTPS images for security
+const isSecureUrl = (url: string) => url.startsWith('https://');
+
+export function ImageModal({ isOpen, onClose, images: rawImages, alt = 'Image', initialIndex = 0 }: ImageModalProps) {
+  // Filter out insecure HTTP images
+  const images = useMemo(() => rawImages.filter(isSecureUrl), [rawImages]);
+
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
 
   // Reset index when initialIndex changes

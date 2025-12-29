@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { ImageModal } from '@/components/ui/ImageModal';
@@ -19,7 +19,13 @@ interface ImageGalleryProps {
   className?: string;
 }
 
-export function ImageGallery({ images, className }: ImageGalleryProps) {
+// Only allow HTTPS images for security
+const isSecureUrl = (url: string) => url.startsWith('https://');
+
+export function ImageGallery({ images: rawImages, className }: ImageGalleryProps) {
+  // Filter out insecure HTTP images
+  const images = useMemo(() => rawImages.filter(img => isSecureUrl(img.url)), [rawImages]);
+
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [errors, setErrors] = useState<Set<number>>(new Set());

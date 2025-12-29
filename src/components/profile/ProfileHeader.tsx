@@ -58,10 +58,10 @@ export function ProfileHeader({ profile }: ProfileHeaderProps) {
   return (
     <div className="relative">
       <div
-        className={`relative h-32 md:h-48 bg-gradient-to-r from-primary to-primary/80 rounded-xl overflow-hidden ${profile.banner && !bannerError ? 'cursor-pointer' : ''}`}
-        onClick={profile.banner && !bannerError ? () => setShowBanner(true) : undefined}
+        className={`relative h-32 md:h-48 bg-gradient-to-r from-primary to-primary/80 rounded-xl overflow-hidden ${profile.banner && !bannerError && profile.banner.startsWith('https://') ? 'cursor-pointer' : ''}`}
+        onClick={profile.banner && !bannerError && profile.banner.startsWith('https://') ? () => setShowBanner(true) : undefined}
       >
-        {profile.banner && !bannerError && (
+        {profile.banner && !bannerError && profile.banner.startsWith('https://') && (
           <Image
             src={profile.banner}
             alt="Banner"
