@@ -9,8 +9,16 @@ import { hexToNpub } from '@/lib/nostr/keys';
 import { FollowWithProfile } from '@/hooks/useFollowing';
 import Link from 'next/link';
 
+// Validate hex pubkey (must be 64 character hex string)
+const isValidPubkey = (pubkey: string) => /^[0-9a-f]{64}$/i.test(pubkey);
+
 // Memoized individual follow item to prevent re-renders
 const FollowItem = memo(function FollowItem({ entry, profile }: FollowWithProfile) {
+  // Skip invalid pubkeys
+  if (!isValidPubkey(entry.pubkey)) {
+    return null;
+  }
+
   const npub = profile?.npub || hexToNpub(entry.pubkey);
   const displayName = profile?.displayName || profile?.name || entry.petname || formatNpub(npub);
 
