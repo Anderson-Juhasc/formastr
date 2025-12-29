@@ -5,14 +5,20 @@ import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 
+// Strip nostr: prefix if present
+function stripNostrPrefix(input: string): string {
+  return input.startsWith('nostr:') ? input.slice(6) : input;
+}
+
 function isValidIdentifier(input: string): boolean {
-  if (input.startsWith('npub1') || input.startsWith('nprofile1')) {
-    return input.length > 10;
+  const cleaned = stripNostrPrefix(input);
+  if (cleaned.startsWith('npub1') || cleaned.startsWith('nprofile1')) {
+    return cleaned.length > 10;
   }
-  if (input.includes('@') || input.includes('.')) {
+  if (cleaned.includes('@') || cleaned.includes('.')) {
     return true;
   }
-  if (/^[0-9a-f]{64}$/i.test(input)) {
+  if (/^[0-9a-f]{64}$/i.test(cleaned)) {
     return true;
   }
   return false;
@@ -37,7 +43,8 @@ export function SearchBar() {
     }
 
     setError(null);
-    router.push(`/${encodeURIComponent(trimmed)}`);
+    const identifier = stripNostrPrefix(trimmed);
+    router.push(`/${encodeURIComponent(identifier)}`);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
