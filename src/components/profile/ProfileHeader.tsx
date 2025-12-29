@@ -70,7 +70,7 @@ export function ProfileHeader({ profile }: ProfileHeaderProps) {
             className="object-cover hover:opacity-90 transition-opacity"
             onError={() => setBannerError(true)}
             priority={false}
-            loading="lazy"
+            loading="eager"
           />
         )}
       </div>
