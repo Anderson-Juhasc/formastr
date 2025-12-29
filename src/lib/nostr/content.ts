@@ -376,6 +376,7 @@ function splitTextWithMentions(text: string): ParsedPart[] {
 
 /**
  * Detect if an image should be rendered inline (surrounded by text) or as block
+ * Images are only inline when truly embedded between text (text on BOTH sides)
  */
 function detectInlineImages(parts: ParsedPart[]): ParsedPart[] {
   return parts.map((part, i) => {
@@ -393,8 +394,9 @@ function detectInlineImages(parts: ParsedPart[]): ParsedPart[] {
       !/^\s*\n/.test(nextPart.content) &&
       nextPart.content.trim().length > 0;
 
-    // If surrounded by text on same line, make it inline
-    if (hasTextBefore || hasTextAfter) {
+    // Only make inline if surrounded by text on BOTH sides (truly embedded)
+    // This prevents "emoji emoji [image]" from becoming tiny inline image
+    if (hasTextBefore && hasTextAfter) {
       return { ...part, type: 'inline-image' as const };
     }
 
