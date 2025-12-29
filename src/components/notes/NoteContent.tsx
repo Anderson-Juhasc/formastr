@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { parseNoteContent, ParsedPart } from '@/lib/nostr/content';
 import { LazyLinkPreview, LazyYouTubeEmbed, LazyEmbeddedNote } from '@/components/lazy';
 import { MentionLink } from './MentionLink';
@@ -16,7 +16,7 @@ interface NoteContentProps {
 // Inline types that should flow together without breaks
 const INLINE_TYPES = new Set(['text', 'mention', 'nostr', 'hashtag', 'invoice', 'code', 'emoji', 'inline-image']);
 
-export function NoteContent({ content, tags, depth = 0 }: NoteContentProps) {
+export const NoteContent = memo(function NoteContent({ content, tags, depth = 0 }: NoteContentProps) {
   // Memoize expensive parsing
   const parts = useMemo(() => parseNoteContent(content, tags), [content, tags]);
 
@@ -104,7 +104,7 @@ export function NoteContent({ content, tags, depth = 0 }: NoteContentProps) {
       })}
     </div>
   );
-}
+});
 
 function RenderInlinePart({ part }: { part: ParsedPart }) {
   switch (part.type) {

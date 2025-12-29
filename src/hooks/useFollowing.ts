@@ -153,8 +153,10 @@ export function useFollowing(pubkey: string | null, enabled = true): UseFollowin
     }
 
     return () => {
-      cancelBatchRef.current?.();
+      // Cancel subscriptions first, then clear refs to prevent race conditions
+      const cancelBatch = cancelBatchRef.current;
       cancelBatchRef.current = null;
+      cancelBatch?.();
       displayedRef.current.clear();
     };
   }, [pubkey, followList, loadBatch]);

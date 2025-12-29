@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { Note, Profile } from '@/types/nostr';
 import { Avatar } from '@/components/ui/Avatar';
 import { Card } from '@/components/ui/Card';
@@ -20,7 +21,7 @@ interface NoteCardProps {
   showStats?: boolean;
 }
 
-export function NoteCard({ note, author, showAuthor = true, showStats = true }: NoteCardProps) {
+export const NoteCard = memo(function NoteCard({ note, author, showAuthor = true, showStats = true }: NoteCardProps) {
   const npub = hexToNpub(note.pubkey);
   const displayName = author?.displayName || author?.name || formatNpub(npub);
   const noteId = nip19.noteEncode(note.id);
@@ -111,4 +112,4 @@ export function NoteCard({ note, author, showAuthor = true, showStats = true }: 
       {showStats && <NoteStatsBar stats={stats} loading={statsLoading} />}
     </Card>
   );
-}
+});

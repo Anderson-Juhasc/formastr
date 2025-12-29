@@ -169,10 +169,13 @@ export function useFollowers(pubkey: string | null, enabled = true): UseFollower
     cancelStreamRef.current = cancel;
 
     return () => {
-      cancelStreamRef.current?.();
-      cancelBatchRef.current?.();
+      // Capture and clear refs first, then cancel to prevent race conditions
+      const cancelStream = cancelStreamRef.current;
+      const cancelBatch = cancelBatchRef.current;
       cancelStreamRef.current = null;
       cancelBatchRef.current = null;
+      cancelStream?.();
+      cancelBatch?.();
     };
   }, [pubkey, enabled, loadBatch]);
 
@@ -190,8 +193,13 @@ export function useFollowers(pubkey: string | null, enabled = true): UseFollower
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      cancelStreamRef.current?.();
-      cancelBatchRef.current?.();
+      // Capture and clear refs first, then cancel to prevent race conditions
+      const cancelStream = cancelStreamRef.current;
+      const cancelBatch = cancelBatchRef.current;
+      cancelStreamRef.current = null;
+      cancelBatchRef.current = null;
+      cancelStream?.();
+      cancelBatch?.();
       displayedRef.current.clear();
       seenPubkeysRef.current.clear();
     };

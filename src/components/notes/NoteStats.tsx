@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { NoteStats, formatZapAmount } from '@/lib/ndk/stats';
 
 interface NoteStatsProps {
@@ -7,7 +8,7 @@ interface NoteStatsProps {
   loading?: boolean;
 }
 
-export function NoteStatsBar({ stats, loading }: NoteStatsProps) {
+export const NoteStatsBar = memo(function NoteStatsBar({ stats, loading }: NoteStatsProps) {
   if (loading) {
     return (
       <div className="flex items-center gap-6 pt-3 mt-3 border-t-2 border-border">
@@ -72,4 +73,4 @@ export function NoteStatsBar({ stats, loading }: NoteStatsProps) {
       </div>
     </div>
   );
-}
+});
