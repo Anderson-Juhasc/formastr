@@ -42,10 +42,11 @@ export function useFollowers(pubkey: string | null, enabled = true): UseFollower
   const cancelBatchRef = useRef<(() => void) | null>(null);
   const lastPubkeyRef = useRef<string | null>(null);
   const initialBatchLoadedRef = useRef(false);
+  const currentPubkeyRef = useRef<string | null>(null);
 
   // Load a batch of profiles with streaming updates
   const loadBatch = useCallback(
-    (pubkeys: string[], onDone?: () => void) => {
+    (pubkeys: string[], forPubkey: string, onDone?: () => void) => {
       if (pubkeys.length === 0) {
         onDone?.();
         return;
@@ -78,6 +79,8 @@ export function useFollowers(pubkey: string | null, enabled = true): UseFollower
       const { cancel } = fetchProfilesBatchStreaming(
         newPubkeys,
         (pk, profile) => {
+          // Guard: don't update if we've switched to a different user
+          if (currentPubkeyRef.current !== forPubkey) return;
           setFollowers((prev) =>
             prev.map((f) => (f.entry.pubkey === pk ? { ...f, profile } : f))
           );
@@ -97,6 +100,9 @@ export function useFollowers(pubkey: string | null, enabled = true): UseFollower
   useEffect(() => {
     if (!pubkey || !enabled) return;
 
+    // Track current pubkey for cancellation guards
+    currentPubkeyRef.current = pubkey;
+
     // Reset if pubkey changed
     if (lastPubkeyRef.current !== pubkey) {
       lastPubkeyRef.current = pubkey;
@@ -113,11 +119,15 @@ export function useFollowers(pubkey: string | null, enabled = true): UseFollower
 
     setIsStreaming(true);
     const collectedPubkeys: string[] = [];
+    const streamPubkey = pubkey; // Capture for closure
 
     const { cancel } = fetchFollowersStreaming(
       pubkey,
       FOLLOWER_LIMIT,
       (followerPubkey) => {
+        // Guard: don't update if we've switched to a different user
+        if (currentPubkeyRef.current !== streamPubkey) return;
+
         // Deduplicate
         if (seenPubkeysRef.current.has(followerPubkey)) return;
         seenPubkeysRef.current.add(followerPubkey);
@@ -133,11 +143,14 @@ export function useFollowers(pubkey: string | null, enabled = true): UseFollower
         if (!initialBatchLoadedRef.current && collectedPubkeys.length >= INITIAL_BATCH_THRESHOLD) {
           initialBatchLoadedRef.current = true;
           const firstBatch = collectedPubkeys.slice(0, PAGE_SIZE);
-          loadBatch(firstBatch);
+          loadBatch(firstBatch, streamPubkey);
           setCursor(PAGE_SIZE);
         }
       },
       () => {
+        // Guard: don't update if we've switched to a different user
+        if (currentPubkeyRef.current !== streamPubkey) return;
+
         // Stream complete
         setFollowerPubkeys([...collectedPubkeys]);
         setIsStreaming(false);
@@ -147,7 +160,7 @@ export function useFollowers(pubkey: string | null, enabled = true): UseFollower
         if (!initialBatchLoadedRef.current && collectedPubkeys.length > 0) {
           initialBatchLoadedRef.current = true;
           const firstBatch = collectedPubkeys.slice(0, PAGE_SIZE);
-          loadBatch(firstBatch);
+          loadBatch(firstBatch, streamPubkey);
           setCursor(Math.min(PAGE_SIZE, collectedPubkeys.length));
         }
       }
@@ -164,15 +177,15 @@ export function useFollowers(pubkey: string | null, enabled = true): UseFollower
   }, [pubkey, enabled, loadBatch]);
 
   const loadMore = useCallback(() => {
-    if (loadingMore || cursor >= followerPubkeys.length) return;
+    if (loadingMore || cursor >= followerPubkeys.length || !pubkey) return;
 
     setLoadingMore(true);
     const nextBatch = followerPubkeys.slice(cursor, cursor + PAGE_SIZE);
-    loadBatch(nextBatch, () => {
+    loadBatch(nextBatch, pubkey, () => {
       setCursor((prev) => prev + PAGE_SIZE);
       setLoadingMore(false);
     });
-  }, [cursor, followerPubkeys, loadingMore, loadBatch]);
+  }, [cursor, followerPubkeys, loadingMore, loadBatch, pubkey]);
 
   // Cleanup on unmount
   useEffect(() => {

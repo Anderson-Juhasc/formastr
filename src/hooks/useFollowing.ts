@@ -31,6 +31,7 @@ export function useFollowing(pubkey: string | null, enabled = true): UseFollowin
   const displayedRef = useRef<Set<string>>(new Set());
   const cancelBatchRef = useRef<(() => void) | null>(null);
   const lastPubkeyRef = useRef<string | null>(null);
+  const currentPubkeyRef = useRef<string | null>(null);
 
   // Fetch the full follow list
   const {
@@ -40,21 +41,36 @@ export function useFollowing(pubkey: string | null, enabled = true): UseFollowin
     error,
   } = useQuery({
     queryKey: ['followList', pubkey],
-    queryFn: () => {
+    queryFn: ({ signal }) => {
       if (!pubkey) return [];
 
       return new Promise<FollowEntry[]>((resolve) => {
         let latestList: FollowEntry[] = [];
+        let resolved = false;
 
-        fetchFollowingStreaming(
+        const doResolve = () => {
+          if (!resolved) {
+            resolved = true;
+            resolve(latestList);
+          }
+        };
+
+        // Resolve with current data if aborted
+        signal?.addEventListener('abort', doResolve);
+
+        const { cancel } = fetchFollowingStreaming(
           pubkey,
           (list) => {
+            if (signal?.aborted) return;
             latestList = list;
           },
           () => {
-            resolve(latestList);
+            doResolve();
           }
         );
+
+        // Cancel subscription if query is aborted
+        signal?.addEventListener('abort', cancel);
       });
     },
     enabled: !!pubkey && enabled,
@@ -62,7 +78,7 @@ export function useFollowing(pubkey: string | null, enabled = true): UseFollowin
 
   // Load a batch of profiles with streaming updates
   const loadBatch = useCallback(
-    (entries: FollowEntry[], onDone?: () => void) => {
+    (entries: FollowEntry[], forPubkey: string, onDone?: () => void) => {
       if (entries.length === 0) {
         onDone?.();
         return;
@@ -97,6 +113,8 @@ export function useFollowing(pubkey: string | null, enabled = true): UseFollowin
       const { cancel } = fetchProfilesBatchStreaming(
         pubkeys,
         (pk, profile) => {
+          // Guard: don't update if we've switched to a different user
+          if (currentPubkeyRef.current !== forPubkey) return;
           setFollowing((prev) =>
             prev.map((f) => (f.entry.pubkey === pk ? { ...f, profile } : f))
           );
@@ -114,6 +132,9 @@ export function useFollowing(pubkey: string | null, enabled = true): UseFollowin
 
   // Handle pubkey change and initial load in one effect to avoid race conditions
   useEffect(() => {
+    // Track current pubkey for cancellation guards
+    currentPubkeyRef.current = pubkey;
+
     // Reset if pubkey changed
     if (lastPubkeyRef.current !== pubkey) {
       lastPubkeyRef.current = pubkey;
@@ -125,9 +146,9 @@ export function useFollowing(pubkey: string | null, enabled = true): UseFollowin
     }
 
     // Load first batch when follow list arrives
-    if (followList.length > 0 && displayedRef.current.size === 0) {
+    if (pubkey && followList.length > 0 && displayedRef.current.size === 0) {
       const firstBatch = followList.slice(0, PAGE_SIZE);
-      loadBatch(firstBatch);
+      loadBatch(firstBatch, pubkey);
       setCursor(PAGE_SIZE);
     }
 
@@ -139,15 +160,15 @@ export function useFollowing(pubkey: string | null, enabled = true): UseFollowin
   }, [pubkey, followList, loadBatch]);
 
   const loadMore = useCallback(() => {
-    if (loadingMore || cursor >= followList.length) return;
+    if (loadingMore || cursor >= followList.length || !pubkey) return;
 
     setLoadingMore(true);
     const nextBatch = followList.slice(cursor, cursor + PAGE_SIZE);
-    loadBatch(nextBatch, () => {
+    loadBatch(nextBatch, pubkey, () => {
       setCursor((prev) => prev + PAGE_SIZE);
       setLoadingMore(false);
     });
-  }, [cursor, followList, loadingMore, loadBatch]);
+  }, [cursor, followList, loadingMore, loadBatch, pubkey]);
 
   return {
     following,
