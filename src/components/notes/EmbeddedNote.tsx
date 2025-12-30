@@ -43,86 +43,59 @@ function EmbeddedNoteAuthor({ pubkey }: { pubkey: string }) {
   );
 }
 
-export function EmbeddedNote({ noteId, depth = 0 }: EmbeddedNoteProps) {
+type DecodedNote =
+  | { type: 'note'; hexId: string; relayHints: string[] | undefined }
+  | { type: 'nevent'; hexId: string; relayHints: string[] | undefined }
+  | { type: 'hex'; hexId: string; relayHints: undefined }
+  | { type: 'naddr' }
+  | { type: 'invalid' }
+  | { type: 'max_depth' };
+
+function decodeNoteId(noteId: string, depth: number): DecodedNote {
+  if (depth >= MAX_EMBED_DEPTH) {
+    return { type: 'max_depth' };
+  }
+
+  try {
+    if (noteId.startsWith('note1')) {
+      const result = nip19.decode(noteId);
+      if (result.type === 'note') {
+        return { type: 'note', hexId: result.data, relayHints: undefined };
+      }
+    } else if (noteId.startsWith('nevent1')) {
+      const result = nip19.decode(noteId);
+      if (result.type === 'nevent') {
+        return {
+          type: 'nevent',
+          hexId: result.data.id,
+          relayHints: result.data.relays,
+        };
+      }
+    } else if (noteId.startsWith('naddr1')) {
+      return { type: 'naddr' };
+    } else if (/^[0-9a-f]{64}$/i.test(noteId)) {
+      return { type: 'hex', hexId: noteId, relayHints: undefined };
+    }
+    return { type: 'invalid' };
+  } catch {
+    return { type: 'invalid' };
+  }
+}
+
+// Inner component that handles note fetching - remounts on hexId change via key
+function EmbeddedNoteLoader({
+  hexId,
+  relayHints,
+}: {
+  hexId: string;
+  relayHints: string[] | undefined;
+}) {
   const [note, setNote] = useState<Note | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const noteReceivedRef = useRef(false);
 
-  if (depth >= MAX_EMBED_DEPTH) {
-    return (
-      <div className="my-2 border-2 border-border rounded-lg p-3 text-muted-foreground text-sm font-medium bg-card shadow-sm">
-        <Link href={`/note/${noteId}`} className="hover:underline hover:text-primary">
-          View nested note →
-        </Link>
-      </div>
-    );
-  }
-
-  const decoded = useMemo(() => {
-    try {
-      if (noteId.startsWith('note1')) {
-        const result = nip19.decode(noteId);
-        if (result.type === 'note') {
-          return { type: 'note' as const, hexId: result.data, relayHints: undefined };
-        }
-      } else if (noteId.startsWith('nevent1')) {
-        const result = nip19.decode(noteId);
-        if (result.type === 'nevent') {
-          return {
-            type: 'nevent' as const,
-            hexId: result.data.id,
-            relayHints: result.data.relays,
-          };
-        }
-      } else if (noteId.startsWith('naddr1')) {
-        const result = nip19.decode(noteId);
-        if (result.type === 'naddr') {
-          return {
-            type: 'naddr' as const,
-            kind: result.data.kind,
-            pubkey: result.data.pubkey,
-            identifier: result.data.identifier,
-            relayHints: result.data.relays,
-          };
-        }
-      } else if (/^[0-9a-f]{64}$/i.test(noteId)) {
-        return { type: 'hex' as const, hexId: noteId, relayHints: undefined };
-      }
-      return { type: 'invalid' as const };
-    } catch {
-      return { type: 'invalid' as const };
-    }
-  }, [noteId]);
-
-  if (decoded.type === 'naddr') {
-    return (
-      <div className="my-2 border-2 border-border rounded-lg p-3 text-muted-foreground text-sm font-medium bg-card shadow-sm">
-        <Link href={`/note/${noteId}`} className="hover:underline hover:text-primary">
-          View referenced content →
-        </Link>
-      </div>
-    );
-  }
-
-  if (decoded.type === 'invalid') {
-    return (
-      <div className="my-2 border-2 border-border rounded-lg p-3 text-muted-foreground text-sm font-medium bg-card shadow-sm">
-        Invalid note reference
-      </div>
-    );
-  }
-
-  const hexId = decoded.hexId;
-  const relayHints = decoded.relayHints;
-
   useEffect(() => {
-    if (!hexId || hexId.length === 0) {
-      setError(true);
-      setLoading(false);
-      return;
-    }
-
     let cancelled = false;
     noteReceivedRef.current = false;
 
@@ -186,5 +159,46 @@ export function EmbeddedNote({ noteId, depth = 0 }: EmbeddedNoteProps) {
         </div>
       </Link>
     </div>
+  );
+}
+
+export function EmbeddedNote({ noteId, depth = 0 }: EmbeddedNoteProps) {
+  const decoded = useMemo(() => decodeNoteId(noteId, depth), [noteId, depth]);
+
+  if (decoded.type === 'max_depth') {
+    return (
+      <div className="my-2 border-2 border-border rounded-lg p-3 text-muted-foreground text-sm font-medium bg-card shadow-sm">
+        <Link href={`/note/${noteId}`} className="hover:underline hover:text-primary">
+          View nested note →
+        </Link>
+      </div>
+    );
+  }
+
+  if (decoded.type === 'naddr') {
+    return (
+      <div className="my-2 border-2 border-border rounded-lg p-3 text-muted-foreground text-sm font-medium bg-card shadow-sm">
+        <Link href={`/note/${noteId}`} className="hover:underline hover:text-primary">
+          View referenced content →
+        </Link>
+      </div>
+    );
+  }
+
+  if (decoded.type === 'invalid') {
+    return (
+      <div className="my-2 border-2 border-border rounded-lg p-3 text-muted-foreground text-sm font-medium bg-card shadow-sm">
+        Invalid note reference
+      </div>
+    );
+  }
+
+  // Use key to reset state when hexId changes instead of manual setState
+  return (
+    <EmbeddedNoteLoader
+      key={decoded.hexId}
+      hexId={decoded.hexId}
+      relayHints={decoded.relayHints}
+    />
   );
 }
