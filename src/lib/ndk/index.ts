@@ -1,9 +1,22 @@
 import NDK from '@nostr-dev-kit/ndk';
 import NDKCacheAdapterDexie from '@nostr-dev-kit/ndk-cache-dexie';
 import { DEFAULT_RELAYS, BOOTSTRAP_RELAYS } from '../nostr/relays';
+import { attachDexieCacheLimiter } from './cache-limiter';
+
+// Detect mobile for cache limits
+const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
 // Create cache adapter with Dexie (IndexedDB)
 const cacheAdapter = new NDKCacheAdapterDexie({ dbName: 'ndk-cache' });
+
+// Attach cache limiter - more aggressive on mobile
+attachDexieCacheLimiter(cacheAdapter, {
+  maxEvents: isMobile ? 5_000 : 15_000,           // 5K on mobile, 15K on desktop
+  maxAgeMs: isMobile
+    ? 1000 * 60 * 60 * 24 * 1    // 1 day on mobile
+    : 1000 * 60 * 60 * 24 * 7,   // 7 days on desktop
+  pruneIntervalMs: 1000 * 60 * 5,                 // Every 5 minutes
+});
 
 // Create NDK singleton
 export const ndk = new NDK({
