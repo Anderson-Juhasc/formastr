@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { fetchProfileStreaming } from '@/lib/ndk/profiles';
+import { useProfileCache } from '@/hooks/useProfileCache';
 
 interface MentionLinkProps {
   pubkey: string;
@@ -11,26 +10,10 @@ interface MentionLinkProps {
 }
 
 export function MentionLink({ pubkey, href, fallback }: MentionLinkProps) {
-  const [displayName, setDisplayName] = useState<string>(fallback);
-
-  useEffect(() => {
-    if (!pubkey || pubkey.length === 0) {
-      return;
-    }
-
-    const { cancel } = fetchProfileStreaming(
-      pubkey,
-      (profile) => {
-        const name = profile.displayName || profile.name;
-        if (name) {
-          setDisplayName('@' + name);
-        }
-      },
-      () => {} // onComplete
-    );
-
-    return cancel;
-  }, [pubkey]);
+  const { profile } = useProfileCache(pubkey);
+  const displayName = profile?.displayName || profile?.name
+    ? '@' + (profile.displayName || profile.name)
+    : fallback;
 
   return (
     <Link
@@ -49,26 +32,10 @@ interface MentionSpanProps {
 }
 
 export function MentionSpan({ pubkey, href, fallback }: MentionSpanProps) {
-  const [displayName, setDisplayName] = useState<string>(fallback);
-
-  useEffect(() => {
-    if (!pubkey || pubkey.length === 0) {
-      return;
-    }
-
-    const { cancel } = fetchProfileStreaming(
-      pubkey,
-      (profile) => {
-        const name = profile.displayName || profile.name;
-        if (name) {
-          setDisplayName('@' + name);
-        }
-      },
-      () => {} // onComplete
-    );
-
-    return cancel;
-  }, [pubkey]);
+  const { profile } = useProfileCache(pubkey);
+  const displayName = profile?.displayName || profile?.name
+    ? '@' + (profile.displayName || profile.name)
+    : fallback;
 
   return (
     <span

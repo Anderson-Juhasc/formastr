@@ -2,15 +2,15 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import dynamic from 'next/dynamic';
-import { Note, Profile } from '@/types/nostr';
+import { Note } from '@/types/nostr';
 import { fetchNoteStreaming } from '@/lib/ndk/notes';
-import { fetchProfileStreaming } from '@/lib/ndk/profiles';
 import { Avatar } from '@/components/ui/Avatar';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { formatNpub, formatTimestamp } from '@/lib/utils';
 import { hexToNpub } from '@/lib/nostr/keys';
 import { nip19 } from 'nostr-tools';
 import Link from 'next/link';
+import { useProfileCache } from '@/hooks/useProfileCache';
 
 const EmbeddedNoteContent = dynamic(
   () => import('./EmbeddedNoteContent').then((mod) => mod.EmbeddedNoteContent),
@@ -27,9 +27,24 @@ interface EmbeddedNoteProps {
   depth?: number;
 }
 
+// Inner component to use hook for author profile
+function EmbeddedNoteAuthor({ pubkey }: { pubkey: string }) {
+  const { profile } = useProfileCache(pubkey);
+  const npub = hexToNpub(pubkey);
+  const displayName = profile?.displayName || profile?.name || formatNpub(npub);
+
+  return (
+    <Link href={`/${npub}`} className="flex items-center gap-2 mb-2">
+      <Avatar src={profile?.picture} alt={displayName} size="xs" />
+      <span className="font-semibold text-sm text-card-foreground hover:underline">
+        {displayName}
+      </span>
+    </Link>
+  );
+}
+
 export function EmbeddedNote({ noteId, depth = 0 }: EmbeddedNoteProps) {
   const [note, setNote] = useState<Note | null>(null);
-  const [author, setAuthor] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const noteReceivedRef = useRef(false);
@@ -109,7 +124,6 @@ export function EmbeddedNote({ noteId, depth = 0 }: EmbeddedNoteProps) {
     }
 
     let cancelled = false;
-    const cancellations: Array<() => void> = [];
     noteReceivedRef.current = false;
 
     const { cancel: cancelNote } = fetchNoteStreaming(
@@ -119,15 +133,6 @@ export function EmbeddedNote({ noteId, depth = 0 }: EmbeddedNoteProps) {
         noteReceivedRef.current = true;
         setNote(noteData);
         setLoading(false);
-
-        const { cancel: cancelProfile } = fetchProfileStreaming(
-          noteData.pubkey,
-          (profile) => {
-            if (!cancelled) setAuthor(profile);
-          },
-          () => {}
-        );
-        cancellations.push(cancelProfile);
       },
       () => {
         if (!cancelled && !noteReceivedRef.current) {
@@ -138,14 +143,9 @@ export function EmbeddedNote({ noteId, depth = 0 }: EmbeddedNoteProps) {
       relayHints
     );
 
-    cancellations.push(cancelNote);
-
     return () => {
       cancelled = true;
-      for (const cancel of cancellations) {
-        cancel();
-      }
-      cancellations.length = 0;
+      cancelNote();
     };
   }, [hexId, relayHints]);
 
@@ -170,23 +170,16 @@ export function EmbeddedNote({ noteId, depth = 0 }: EmbeddedNoteProps) {
     );
   }
 
-  const npub = hexToNpub(note.pubkey);
-  const displayName = author?.displayName || author?.name || formatNpub(npub);
   const noteLink = `/note/${nip19.noteEncode(note.id)}`;
 
   return (
     <div className="my-2 border-2 border-border rounded-lg p-3 bg-card shadow-md hover:shadow-lg transition-all">
-      <Link href={`/${npub}`} className="flex items-center gap-2 mb-2">
-        <Avatar src={author?.picture} alt={displayName} size="xs" />
-        <div className="flex flex-col">
-          <span className="font-semibold text-sm text-card-foreground hover:underline">
-            {displayName}
-          </span>
-          <span className="text-muted-foreground text-xs">
-            {formatTimestamp(note.createdAt)}
-          </span>
-        </div>
-      </Link>
+      <div className="flex items-center justify-between mb-2">
+        <EmbeddedNoteAuthor pubkey={note.pubkey} />
+        <span className="text-muted-foreground text-xs">
+          {formatTimestamp(note.createdAt)}
+        </span>
+      </div>
       <Link href={noteLink} className="block">
         <div className="text-sm text-card-foreground">
           <EmbeddedNoteContent content={note.content} tags={note.tags} />
