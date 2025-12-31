@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 import { Note } from '@/types/nostr';
 import { fetchNotesStreaming } from '@/lib/ndk/notes';
+import { isPageVisible } from '@/lib/ndk/visibility';
 
 interface UseNotesResult {
   notes: Note[];
@@ -30,10 +31,14 @@ function insertSorted(notes: Note[], note: Note): Note[] {
 // Time to wait after first note to collect more cache results before resolving
 const CACHE_COLLECTION_DELAY = 300;
 
+// Maximum seen items to prevent unbounded growth
+const MAX_SEEN_ITEMS = 1000;
+
 export function useNotes(pubkey: string | null, limit = 20, enabled = true): UseNotesResult {
   const queryClient = useQueryClient();
   const seenRef = useRef<Set<string>>(new Set());
-  const abortControllerRef = useRef<AbortController | null>(null);
+  const cancelRef = useRef<(() => void) | null>(null);
+  const mountedRef = useRef(true);
 
   const queryKey = ['notes', pubkey, limit];
 
@@ -47,6 +52,12 @@ export function useNotes(pubkey: string | null, limit = 20, enabled = true): Use
     queryFn: ({ signal }) => {
       if (!pubkey) return [];
 
+      // Don't start new fetches if page is not visible
+      if (!isPageVisible()) {
+        return [];
+      }
+
+      // Reset seen set but keep it bounded
       seenRef.current = new Set();
 
       return new Promise<Note[]>((resolve) => {
@@ -54,10 +65,18 @@ export function useNotes(pubkey: string | null, limit = 20, enabled = true): Use
         let resolved = false;
         let resolveTimer: ReturnType<typeof setTimeout> | null = null;
 
+        const cleanup = () => {
+          if (resolveTimer) {
+            clearTimeout(resolveTimer);
+            resolveTimer = null;
+          }
+          signal?.removeEventListener('abort', abortHandler);
+        };
+
         const doResolve = () => {
           if (!resolved) {
             resolved = true;
-            if (resolveTimer) clearTimeout(resolveTimer);
+            cleanup();
             resolve([...collectedNotes]);
           }
         };
@@ -68,15 +87,26 @@ export function useNotes(pubkey: string | null, limit = 20, enabled = true): Use
           resolveTimer = setTimeout(doResolve, CACHE_COLLECTION_DELAY);
         };
 
-        // Resolve with current data if aborted
-        signal?.addEventListener('abort', doResolve);
+        // Handler for abort signal - must be named for removal
+        const abortHandler = () => {
+          cancelRef.current?.();
+          doResolve();
+        };
+
+        signal?.addEventListener('abort', abortHandler);
 
         const { cancel } = fetchNotesStreaming(
           pubkey,
           limit,
           (note) => {
-            if (signal?.aborted) return;
+            if (signal?.aborted || !mountedRef.current) return;
             if (seenRef.current.has(note.id)) return;
+
+            // Bound the seen set to prevent memory growth
+            if (seenRef.current.size >= MAX_SEEN_ITEMS) {
+              const firstKey = seenRef.current.values().next().value;
+              if (firstKey) seenRef.current.delete(firstKey);
+            }
             seenRef.current.add(note.id);
 
             // Add to collected notes (for initial resolve)
@@ -96,21 +126,19 @@ export function useNotes(pubkey: string | null, limit = 20, enabled = true): Use
           }
         );
 
-        // Store cancel for cleanup
-        abortControllerRef.current = { abort: cancel } as AbortController;
-
-        // Cancel subscription if query is aborted (e.g., by React Query gcTime)
-        signal?.addEventListener('abort', cancel);
+        cancelRef.current = cancel;
       });
     },
     enabled: !!pubkey && enabled,
   });
 
-  // Cleanup subscription on unmount or pubkey change
+  // Track mounted state and cleanup on unmount or pubkey change
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
-      abortControllerRef.current?.abort();
-      abortControllerRef.current = null;
+      mountedRef.current = false;
+      cancelRef.current?.();
+      cancelRef.current = null;
       seenRef.current.clear();
     };
   }, [pubkey, limit]);

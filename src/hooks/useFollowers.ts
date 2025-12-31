@@ -6,6 +6,7 @@ import { Profile } from '@/types/nostr';
 import { fetchFollowersStreaming } from '@/lib/ndk/follows';
 import { fetchProfilesBatchStreaming } from '@/lib/ndk/profiles';
 import { FollowWithProfile } from './useFollowing';
+import { isPageVisible, onVisibilityChange } from '@/lib/ndk/visibility';
 
 interface UseFollowersResult {
   followers: FollowWithProfile[];
@@ -18,7 +19,9 @@ interface UseFollowersResult {
   isStreaming: boolean;
 }
 
-const FOLLOWER_LIMIT = 5000;
+// Reduced limit on mobile to prevent memory issues
+const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+const FOLLOWER_LIMIT = isMobile ? 1000 : 5000;
 const PAGE_SIZE = 10;
 const INITIAL_BATCH_THRESHOLD = PAGE_SIZE; // Load first batch when we have this many
 
@@ -100,6 +103,9 @@ export function useFollowers(pubkey: string | null, enabled = true): UseFollower
   useEffect(() => {
     if (!pubkey || !enabled) return;
 
+    // Don't start streaming if page is not visible
+    if (!isPageVisible()) return;
+
     // Track current pubkey for cancellation guards
     currentPubkeyRef.current = pubkey;
 
@@ -130,6 +136,11 @@ export function useFollowers(pubkey: string | null, enabled = true): UseFollower
 
         // Deduplicate
         if (seenPubkeysRef.current.has(followerPubkey)) return;
+
+        // Bound the seen set to prevent unbounded growth
+        if (seenPubkeysRef.current.size >= FOLLOWER_LIMIT) {
+          return; // Stop accepting more
+        }
         seenPubkeysRef.current.add(followerPubkey);
 
         collectedPubkeys.push(followerPubkey);
@@ -168,7 +179,18 @@ export function useFollowers(pubkey: string | null, enabled = true): UseFollower
 
     cancelStreamRef.current = cancel;
 
+    // Listen for visibility changes to pause/cancel streaming
+    const unsubscribeVisibility = onVisibilityChange((visible) => {
+      if (!visible && cancelStreamRef.current) {
+        // Page hidden - cancel streaming to save resources
+        cancelStreamRef.current();
+        cancelStreamRef.current = null;
+        setIsStreaming(false);
+      }
+    });
+
     return () => {
+      unsubscribeVisibility();
       // Capture and clear refs first, then cancel to prevent race conditions
       const cancelStream = cancelStreamRef.current;
       const cancelBatch = cancelBatchRef.current;

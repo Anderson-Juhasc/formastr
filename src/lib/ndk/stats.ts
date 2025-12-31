@@ -1,6 +1,8 @@
 import { NDKEvent, NDKSubscription, NDKSubscriptionCacheUsage } from '@nostr-dev-kit/ndk';
 import { ensureConnected, safeSubscribe } from './index';
 import { EOSE_DELAY } from './constants';
+import { subscriptionManager } from './subscription-manager';
+import { isPageVisible } from './visibility';
 
 export interface NoteStats {
   replies: number;
@@ -9,6 +11,9 @@ export interface NoteStats {
   zaps: number;
   zapsAmount: number; // in sats
 }
+
+// Maximum seen items per set to prevent unbounded growth
+const MAX_SEEN_PER_TYPE = 500;
 
 /**
  * Fetch note stats with streaming - updates callback as events arrive
@@ -26,6 +31,12 @@ export function fetchNoteStatsStreaming(
     return { cancel: () => {} };
   }
 
+  // Don't start new fetches if page is not visible
+  if (!isPageVisible()) {
+    onComplete();
+    return { cancel: () => {} };
+  }
+
   const stats: NoteStats = {
     replies: 0,
     reposts: 0,
@@ -34,27 +45,42 @@ export function fetchNoteStatsStreaming(
     zapsAmount: 0,
   };
 
-  // Track seen event IDs to avoid duplicates
+  // Track seen event IDs to avoid duplicates (bounded)
   const seenReplies = new Set<string>();
   const seenReposts = new Set<string>();
   const seenLikes = new Set<string>();
   const seenZaps = new Set<string>();
+
+  // Helper to add to bounded set
+  const addToBoundedSet = (set: Set<string>, id: string) => {
+    if (set.size >= MAX_SEEN_PER_TYPE) {
+      const firstKey = set.values().next().value;
+      if (firstKey) set.delete(firstKey);
+    }
+    set.add(id);
+  };
 
   let eoseCount = 0;
   let completed = false;
   const subs: NDKSubscription[] = [];
   let cancelled = false;
   let completeTimeout: ReturnType<typeof setTimeout> | null = null;
+  const subId = subscriptionManager.generateId(`stats-${noteId.slice(0, 8)}`);
 
   const cleanup = () => {
     for (const sub of subs) {
-      sub.stop();
+      try {
+        sub.stop();
+      } catch {
+        // Ignore errors during cleanup
+      }
     }
     subs.length = 0;
     seenReplies.clear();
     seenReposts.clear();
     seenLikes.clear();
     seenZaps.clear();
+    subscriptionManager.unregister(subId);
   };
 
   const checkComplete = () => {
@@ -84,7 +110,7 @@ export function fetchNoteStatsStreaming(
       repliesSub.on('event', (event: NDKEvent) => {
         if (cancelled) return;
         if (!seenReplies.has(event.id)) {
-          seenReplies.add(event.id);
+          addToBoundedSet(seenReplies, event.id);
           stats.replies++;
           onStats({ ...stats });
         }
@@ -107,7 +133,7 @@ export function fetchNoteStatsStreaming(
       repostsSub.on('event', (event: NDKEvent) => {
         if (cancelled) return;
         if (!seenReposts.has(event.id)) {
-          seenReposts.add(event.id);
+          addToBoundedSet(seenReposts, event.id);
           stats.reposts++;
           onStats({ ...stats });
         }
@@ -130,7 +156,7 @@ export function fetchNoteStatsStreaming(
       likesSub.on('event', (event: NDKEvent) => {
         if (cancelled) return;
         if (!seenLikes.has(event.id)) {
-          seenLikes.add(event.id);
+          addToBoundedSet(seenLikes, event.id);
           stats.likes++;
           onStats({ ...stats });
         }
@@ -153,7 +179,7 @@ export function fetchNoteStatsStreaming(
       zapsSub.on('event', (event: NDKEvent) => {
         if (cancelled) return;
         if (!seenZaps.has(event.id)) {
-          seenZaps.add(event.id);
+          addToBoundedSet(seenZaps, event.id);
           stats.zaps++;
 
           // Parse zap amount
@@ -172,6 +198,11 @@ export function fetchNoteStatsStreaming(
       subs.push(zapsSub);
     } else {
       checkComplete();
+    }
+
+    // Register all subscriptions with the manager (using first sub as representative)
+    if (subs.length > 0) {
+      subscriptionManager.register(subId, subs[0], cleanup);
     }
   }).catch(() => {
     if (!cancelled) {

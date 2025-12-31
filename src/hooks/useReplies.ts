@@ -5,12 +5,16 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Note, Profile } from '@/types/nostr';
 import { fetchRepliesStreaming } from '@/lib/ndk/notes';
 import { fetchProfilesBatchStreaming } from '@/lib/ndk/profiles';
+import { isPageVisible } from '@/lib/ndk/visibility';
 
 // Debounce time for batching profile fetches
 const PROFILE_BATCH_DELAY = 100;
 
 // Time to wait after first reply to collect more cache results before resolving
 const CACHE_COLLECTION_DELAY = 300;
+
+// Maximum seen items to prevent unbounded growth
+const MAX_SEEN_ITEMS = 500;
 
 export interface ReplyWithAuthor {
   note: Note;
@@ -42,6 +46,7 @@ export function useReplies(noteId: string | null, enabled = true): UseRepliesRes
   const queryClient = useQueryClient();
   const [replies, setReplies] = useState<ReplyWithAuthor[]>([]);
   const cancelBatchRef = useRef<(() => void) | null>(null);
+  const cancelStreamRef = useRef<(() => void) | null>(null);
   const pendingPubkeysRef = useRef<Set<string>>(new Set());
   const batchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fetchedPubkeysRef = useRef<Set<string>>(new Set());
@@ -63,6 +68,11 @@ export function useReplies(noteId: string | null, enabled = true): UseRepliesRes
       pendingPubkeysRef.current = new Set();
 
       if (pubkeys.length === 0) return;
+
+      // Bound fetched pubkeys set
+      if (fetchedPubkeysRef.current.size > MAX_SEEN_ITEMS) {
+        fetchedPubkeysRef.current.clear();
+      }
 
       // Mark as being fetched
       for (const pk of pubkeys) {
@@ -94,6 +104,11 @@ export function useReplies(noteId: string | null, enabled = true): UseRepliesRes
     queryFn: ({ signal }) => {
       if (!noteId) return [];
 
+      // Don't start new fetches if page is not visible
+      if (!isPageVisible()) {
+        return [];
+      }
+
       pendingPubkeysRef.current = new Set();
       fetchedPubkeysRef.current = new Set();
 
@@ -103,10 +118,18 @@ export function useReplies(noteId: string | null, enabled = true): UseRepliesRes
         let resolved = false;
         let resolveTimer: ReturnType<typeof setTimeout> | null = null;
 
+        const cleanup = () => {
+          if (resolveTimer) {
+            clearTimeout(resolveTimer);
+            resolveTimer = null;
+          }
+          signal?.removeEventListener('abort', abortHandler);
+        };
+
         const doResolve = () => {
           if (!resolved) {
             resolved = true;
-            if (resolveTimer) clearTimeout(resolveTimer);
+            cleanup();
             resolve([...collectedReplies]);
           }
         };
@@ -117,15 +140,26 @@ export function useReplies(noteId: string | null, enabled = true): UseRepliesRes
           resolveTimer = setTimeout(doResolve, CACHE_COLLECTION_DELAY);
         };
 
-        // Resolve with current data if aborted
-        signal?.addEventListener('abort', doResolve);
+        // Handler for abort signal - must be named for removal
+        const abortHandler = () => {
+          cancelStreamRef.current?.();
+          doResolve();
+        };
+
+        signal?.addEventListener('abort', abortHandler);
 
         const { cancel } = fetchRepliesStreaming(
           noteId,
           50,
           (note) => {
-            if (signal?.aborted) return;
+            if (signal?.aborted || cancelledRef.current) return;
             if (seen.has(note.id)) return;
+
+            // Bound the seen set
+            if (seen.size >= MAX_SEEN_ITEMS) {
+              const firstKey = seen.values().next().value;
+              if (firstKey) seen.delete(firstKey);
+            }
             seen.add(note.id);
 
             const reply: ReplyWithAuthor = { note, author: null };
@@ -153,8 +187,7 @@ export function useReplies(noteId: string | null, enabled = true): UseRepliesRes
           }
         );
 
-        // Cancel subscription if query is aborted
-        signal?.addEventListener('abort', cancel);
+        cancelStreamRef.current = cancel;
       });
     },
     enabled: !!noteId && enabled,
@@ -172,6 +205,8 @@ export function useReplies(noteId: string | null, enabled = true): UseRepliesRes
       // Mark as cancelled to prevent state updates after unmount
       cancelledRef.current = true;
       // Cleanup on unmount or noteId change
+      cancelStreamRef.current?.();
+      cancelStreamRef.current = null;
       cancelBatchRef.current?.();
       cancelBatchRef.current = null;
       if (batchTimeoutRef.current) {
