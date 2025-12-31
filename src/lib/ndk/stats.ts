@@ -12,13 +12,14 @@ export interface NoteStats {
   zapsAmount: number; // in sats
 }
 
-// Maximum seen items per set to prevent unbounded growth
-const MAX_SEEN_PER_TYPE = 500;
+// Maximum seen items to prevent unbounded growth (single set for all types)
+const MAX_SEEN_EVENTS = 1000;
 
 /**
  * Fetch note stats with streaming - updates callback as events arrive
  * Returns immediately with zeros, then updates incrementally
- * Uses PARALLEL for cache + network
+ * Uses a SINGLE subscription for all stat types (replies, reposts, likes, zaps)
+ * This reduces WebSocket overhead from 4 subs to 1 sub per note
  */
 export function fetchNoteStatsStreaming(
   noteId: string,
@@ -45,144 +46,67 @@ export function fetchNoteStatsStreaming(
     zapsAmount: 0,
   };
 
-  // Track seen event IDs to avoid duplicates (bounded)
-  const seenReplies = new Set<string>();
-  const seenReposts = new Set<string>();
-  const seenLikes = new Set<string>();
-  const seenZaps = new Set<string>();
+  // Single seen set for all event types (more memory efficient)
+  const seen = new Set<string>();
 
-  // Helper to add to bounded set
-  const addToBoundedSet = (set: Set<string>, id: string) => {
-    if (set.size >= MAX_SEEN_PER_TYPE) {
-      const firstKey = set.values().next().value;
-      if (firstKey) set.delete(firstKey);
-    }
-    set.add(id);
-  };
-
-  let eoseCount = 0;
-  let completed = false;
-  const subs: NDKSubscription[] = [];
   let cancelled = false;
-  let completeTimeout: ReturnType<typeof setTimeout> | null = null;
+  let sub: NDKSubscription | null = null;
+  let eoseTimeout: ReturnType<typeof setTimeout> | null = null;
   const subId = subscriptionManager.generateId(`stats-${noteId.slice(0, 8)}`);
 
   const cleanup = () => {
-    for (const sub of subs) {
-      try {
-        sub.stop();
-      } catch {
-        // Ignore errors during cleanup
-      }
+    try {
+      sub?.stop();
+    } catch {
+      // Ignore errors during cleanup
     }
-    subs.length = 0;
-    seenReplies.clear();
-    seenReposts.clear();
-    seenLikes.clear();
-    seenZaps.clear();
+    sub = null;
+    seen.clear();
     subscriptionManager.unregister(subId);
-  };
-
-  const checkComplete = () => {
-    eoseCount++;
-    if (eoseCount >= 4 && !completed) {
-      completed = true;
-      completeTimeout = setTimeout(() => {
-        if (cancelled) return;
-        cleanup();
-        onComplete();
-      }, EOSE_DELAY);
-    }
   };
 
   ensureConnected().then(() => {
     if (cancelled) return;
 
-    // Replies (kind 1)
-    const repliesSub = safeSubscribe(
-      { kinds: [1], '#e': [noteId] },
+    // Combined subscription for all stat types: replies (1), reposts (6), likes (7), zaps (9735)
+    sub = safeSubscribe(
+      { kinds: [1, 6, 7, 9735], '#e': [noteId] },
       {
         closeOnEose: true,
         cacheUsage: NDKSubscriptionCacheUsage.PARALLEL,
       }
     );
-    if (repliesSub) {
-      repliesSub.on('event', (event: NDKEvent) => {
-        if (cancelled) return;
-        if (!seenReplies.has(event.id)) {
-          addToBoundedSet(seenReplies, event.id);
+
+    if (!sub) {
+      onComplete();
+      return;
+    }
+
+    sub.on('event', (event: NDKEvent) => {
+      if (cancelled) return;
+      if (seen.has(event.id)) return;
+
+      // Bound the seen set
+      if (seen.size >= MAX_SEEN_EVENTS) {
+        const firstKey = seen.values().next().value;
+        if (firstKey) seen.delete(firstKey);
+      }
+      seen.add(event.id);
+
+      // Categorize by event kind
+      switch (event.kind) {
+        case 1: // Reply
           stats.replies++;
-          onStats({ ...stats });
-        }
-      });
-      repliesSub.on('eose', checkComplete);
-      subs.push(repliesSub);
-    } else {
-      checkComplete();
-    }
-
-    // Reposts (kind 6)
-    const repostsSub = safeSubscribe(
-      { kinds: [6], '#e': [noteId] },
-      {
-        closeOnEose: true,
-        cacheUsage: NDKSubscriptionCacheUsage.PARALLEL,
-      }
-    );
-    if (repostsSub) {
-      repostsSub.on('event', (event: NDKEvent) => {
-        if (cancelled) return;
-        if (!seenReposts.has(event.id)) {
-          addToBoundedSet(seenReposts, event.id);
+          break;
+        case 6: // Repost
           stats.reposts++;
-          onStats({ ...stats });
-        }
-      });
-      repostsSub.on('eose', checkComplete);
-      subs.push(repostsSub);
-    } else {
-      checkComplete();
-    }
-
-    // Reactions/Likes (kind 7)
-    const likesSub = safeSubscribe(
-      { kinds: [7], '#e': [noteId] },
-      {
-        closeOnEose: true,
-        cacheUsage: NDKSubscriptionCacheUsage.PARALLEL,
-      }
-    );
-    if (likesSub) {
-      likesSub.on('event', (event: NDKEvent) => {
-        if (cancelled) return;
-        if (!seenLikes.has(event.id)) {
-          addToBoundedSet(seenLikes, event.id);
+          break;
+        case 7: // Reaction/Like
           stats.likes++;
-          onStats({ ...stats });
-        }
-      });
-      likesSub.on('eose', checkComplete);
-      subs.push(likesSub);
-    } else {
-      checkComplete();
-    }
-
-    // Zap receipts (kind 9735)
-    const zapsSub = safeSubscribe(
-      { kinds: [9735], '#e': [noteId] },
-      {
-        closeOnEose: true,
-        cacheUsage: NDKSubscriptionCacheUsage.PARALLEL,
-      }
-    );
-    if (zapsSub) {
-      zapsSub.on('event', (event: NDKEvent) => {
-        if (cancelled) return;
-        if (!seenZaps.has(event.id)) {
-          addToBoundedSet(seenZaps, event.id);
+          break;
+        case 9735: // Zap receipt
           stats.zaps++;
-
-          // Parse zap amount
+          // Parse zap amount from bolt11 invoice
           const bolt11Tag = event.tags.find((t) => t[0] === 'bolt11');
           if (bolt11Tag?.[1]) {
             const amount = parseZapAmount(bolt11Tag[1]);
@@ -190,20 +114,23 @@ export function fetchNoteStatsStreaming(
               stats.zapsAmount += amount;
             }
           }
+          break;
+      }
 
-          onStats({ ...stats });
-        }
-      });
-      zapsSub.on('eose', checkComplete);
-      subs.push(zapsSub);
-    } else {
-      checkComplete();
-    }
+      onStats({ ...stats });
+    });
 
-    // Register all subscriptions with the manager (using first sub as representative)
-    if (subs.length > 0) {
-      subscriptionManager.register(subId, subs[0], cleanup);
-    }
+    sub.on('eose', () => {
+      if (cancelled) return;
+      eoseTimeout = setTimeout(() => {
+        if (cancelled) return;
+        cleanup();
+        onComplete();
+      }, EOSE_DELAY);
+    });
+
+    // Register subscription with the manager
+    subscriptionManager.register(subId, sub, cleanup);
   }).catch(() => {
     if (!cancelled) {
       onComplete();
@@ -213,9 +140,9 @@ export function fetchNoteStatsStreaming(
   return {
     cancel: () => {
       cancelled = true;
-      if (completeTimeout) {
-        clearTimeout(completeTimeout);
-        completeTimeout = null;
+      if (eoseTimeout) {
+        clearTimeout(eoseTimeout);
+        eoseTimeout = null;
       }
       cleanup();
     },

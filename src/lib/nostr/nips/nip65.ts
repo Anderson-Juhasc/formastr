@@ -8,22 +8,34 @@
  */
 
 /**
- * Default relays to use when user's relay list is unknown
+ * Detect mobile for relay optimization
  */
-export const DEFAULT_RELAYS = [
-  'wss://relay.damus.io',
-  'wss://nos.lol',
-  'wss://relay.snort.social',
-  'wss://relay.primal.net',
-];
+const isMobile = typeof navigator !== 'undefined' &&
+  /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+/**
+ * Default relays to use when user's relay list is unknown
+ * Mobile uses only 2 relays to save memory and battery
+ */
+export const DEFAULT_RELAYS = isMobile
+  ? [
+      'wss://relay.damus.io',
+      'wss://nos.lol',
+    ]
+  : [
+      'wss://relay.damus.io',
+      'wss://nos.lol',
+      'wss://relay.snort.social',
+      'wss://relay.primal.net',
+    ];
 
 /**
  * Bootstrap relays for discovering user relay preferences
+ * Mobile uses only 1 bootstrap relay
  */
-export const BOOTSTRAP_RELAYS = [
-  'wss://purplepag.es',
-  'wss://relay.damus.io',
-];
+export const BOOTSTRAP_RELAYS = isMobile
+  ? ['wss://purplepag.es']
+  : ['wss://purplepag.es', 'wss://relay.damus.io'];
 
 /**
  * Kind number for relay list metadata events

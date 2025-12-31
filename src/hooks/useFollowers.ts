@@ -25,6 +25,10 @@ const FOLLOWER_LIMIT = isMobile ? 1000 : 5000;
 const PAGE_SIZE = 10;
 const INITIAL_BATCH_THRESHOLD = PAGE_SIZE; // Load first batch when we have this many
 
+// Maximum profiles to keep in memory (windowing)
+// Older profiles are discarded to save memory
+const MAX_LOADED_PROFILES = isMobile ? 50 : 200;
+
 export function useFollowers(pubkey: string | null, enabled = true): UseFollowersResult {
   const queryClient = useQueryClient();
 
@@ -75,7 +79,20 @@ export function useFollowers(pubkey: string | null, enabled = true): UseFollower
       setFollowers((prev) => {
         const existingPubkeys = new Set(prev.map((f) => f.entry.pubkey));
         const uniqueNew = initialFollowers.filter((f) => !existingPubkeys.has(f.entry.pubkey));
-        return [...prev, ...uniqueNew];
+        const combined = [...prev, ...uniqueNew];
+
+        // Apply windowing: keep only the most recent MAX_LOADED_PROFILES
+        // This prevents memory from growing unbounded on long lists
+        if (combined.length > MAX_LOADED_PROFILES) {
+          // Remove oldest entries (from the beginning)
+          const toRemove = combined.slice(0, combined.length - MAX_LOADED_PROFILES);
+          // Clear displayedRef for removed items so they can be reloaded if scrolled back
+          for (const item of toRemove) {
+            displayedRef.current.delete(item.entry.pubkey);
+          }
+          return combined.slice(-MAX_LOADED_PROFILES);
+        }
+        return combined;
       });
 
       // Fetch profiles with streaming - each profile updates as it arrives

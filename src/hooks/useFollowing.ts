@@ -23,6 +23,13 @@ interface UseFollowingResult {
 
 const PAGE_SIZE = 20;
 
+// Detect mobile for windowing limits
+const isMobile = typeof navigator !== 'undefined' &&
+  /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+// Maximum profiles to keep in memory (windowing)
+const MAX_LOADED_PROFILES = isMobile ? 50 : 200;
+
 export function useFollowing(pubkey: string | null, enabled = true): UseFollowingResult {
   const queryClient = useQueryClient();
   const [following, setFollowing] = useState<FollowWithProfile[]>([]);
@@ -106,7 +113,17 @@ export function useFollowing(pubkey: string | null, enabled = true): UseFollowin
       setFollowing((prev) => {
         const existingPubkeys = new Set(prev.map((f) => f.entry.pubkey));
         const uniqueNew = initialFollowing.filter((f) => !existingPubkeys.has(f.entry.pubkey));
-        return [...prev, ...uniqueNew];
+        const combined = [...prev, ...uniqueNew];
+
+        // Apply windowing: keep only the most recent MAX_LOADED_PROFILES
+        if (combined.length > MAX_LOADED_PROFILES) {
+          const toRemove = combined.slice(0, combined.length - MAX_LOADED_PROFILES);
+          for (const item of toRemove) {
+            displayedRef.current.delete(item.entry.pubkey);
+          }
+          return combined.slice(-MAX_LOADED_PROFILES);
+        }
+        return combined;
       });
 
       // Fetch profiles with streaming - each profile updates as it arrives

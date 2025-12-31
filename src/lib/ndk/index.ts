@@ -19,10 +19,11 @@ attachDexieCacheLimiter(cacheAdapter, {
 });
 
 // Create NDK singleton
+// Disable outbox model on mobile to prevent relay proliferation
 export const ndk = new NDK({
   explicitRelayUrls: DEFAULT_RELAYS,
   outboxRelayUrls: BOOTSTRAP_RELAYS,
-  enableOutboxModel: true,
+  enableOutboxModel: !isMobile, // Disabled on mobile to save resources
   cacheAdapter,
 });
 
