@@ -11,6 +11,7 @@ export interface DexieCacheLimits {
 
 /**
  * Attaches cache limiting logic to an existing Dexie adapter
+ * Waits for DB to be ready if not initialized yet
  */
 export function attachDexieCacheLimiter(
   adapter: NDKCacheAdapterDexie,
@@ -19,11 +20,17 @@ export function attachDexieCacheLimiter(
   const { maxEvents, maxAgeMs, pruneIntervalMs } = limits;
 
   // @ts-expect-error - db is not typed but exists
-  const db = adapter.db;
+  let db = adapter.db;
 
+  // If DB not ready, defer setup (common during SSR or initial load)
   if (!db) {
-    console.warn('[NDK Cache Limiter] DB not initialized yet, skipping limiter setup');
-    return { pruneNow: async () => {} };
+    // Retry after a short delay (browser only)
+    if (typeof window !== 'undefined') {
+      setTimeout(() => {
+        attachDexieCacheLimiter(adapter, limits);
+      }, 1000);
+    }
+    return { pruneNow: async () => {}, stop: () => {} };
   }
 
   /**
