@@ -33,7 +33,9 @@ export function useFollowers(pubkey: string | null, enabled = true): UseFollower
   const queryClient = useQueryClient();
 
   // Streaming state - followers discovered so far
-  const [followerPubkeys, setFollowerPubkeys] = useState<string[]>([]);
+  // Use a ref for the actual array to avoid creating copies on every update
+  const collectedPubkeysRef = useRef<string[]>([]);
+  const [followerCount, setFollowerCount] = useState(0);
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamComplete, setStreamComplete] = useState(false);
 
@@ -130,7 +132,8 @@ export function useFollowers(pubkey: string | null, enabled = true): UseFollower
     if (lastPubkeyRef.current !== pubkey) {
       lastPubkeyRef.current = pubkey;
       setFollowers([]);
-      setFollowerPubkeys([]);
+      collectedPubkeysRef.current = [];
+      setFollowerCount(0);
       setCursor(0);
       setStreamComplete(false);
       initialBatchLoadedRef.current = false;
@@ -141,8 +144,9 @@ export function useFollowers(pubkey: string | null, enabled = true): UseFollower
     }
 
     setIsStreaming(true);
-    const collectedPubkeys: string[] = [];
     const streamPubkey = pubkey; // Capture for closure
+    // Use the ref's array directly to avoid creating new arrays
+    const localCollected = collectedPubkeysRef.current;
 
     const { cancel } = fetchFollowersStreaming(
       pubkey,
@@ -160,17 +164,18 @@ export function useFollowers(pubkey: string | null, enabled = true): UseFollower
         }
         seenPubkeysRef.current.add(followerPubkey);
 
-        collectedPubkeys.push(followerPubkey);
+        localCollected.push(followerPubkey);
 
-        // Update the count incrementally (batch updates for performance)
-        if (collectedPubkeys.length % 10 === 0 || collectedPubkeys.length <= INITIAL_BATCH_THRESHOLD) {
-          setFollowerPubkeys([...collectedPubkeys]);
+        // Update the count incrementally (just the count, not the array)
+        // Use modulo check to batch count updates for performance
+        if (localCollected.length % 10 === 0 || localCollected.length <= INITIAL_BATCH_THRESHOLD) {
+          setFollowerCount(localCollected.length);
         }
 
         // Load first batch as soon as we have enough followers
-        if (!initialBatchLoadedRef.current && collectedPubkeys.length >= INITIAL_BATCH_THRESHOLD) {
+        if (!initialBatchLoadedRef.current && localCollected.length >= INITIAL_BATCH_THRESHOLD) {
           initialBatchLoadedRef.current = true;
-          const firstBatch = collectedPubkeys.slice(0, PAGE_SIZE);
+          const firstBatch = localCollected.slice(0, PAGE_SIZE);
           loadBatch(firstBatch, streamPubkey);
           setCursor(PAGE_SIZE);
         }
@@ -179,17 +184,17 @@ export function useFollowers(pubkey: string | null, enabled = true): UseFollower
         // Guard: don't update if we've switched to a different user
         if (currentPubkeyRef.current !== streamPubkey) return;
 
-        // Stream complete
-        setFollowerPubkeys([...collectedPubkeys]);
+        // Stream complete - update final count
+        setFollowerCount(localCollected.length);
         setIsStreaming(false);
         setStreamComplete(true);
 
         // If we never hit the threshold, load whatever we have
-        if (!initialBatchLoadedRef.current && collectedPubkeys.length > 0) {
+        if (!initialBatchLoadedRef.current && localCollected.length > 0) {
           initialBatchLoadedRef.current = true;
-          const firstBatch = collectedPubkeys.slice(0, PAGE_SIZE);
+          const firstBatch = localCollected.slice(0, PAGE_SIZE);
           loadBatch(firstBatch, streamPubkey);
-          setCursor(Math.min(PAGE_SIZE, collectedPubkeys.length));
+          setCursor(Math.min(PAGE_SIZE, localCollected.length));
         }
       }
     );
@@ -219,15 +224,16 @@ export function useFollowers(pubkey: string | null, enabled = true): UseFollower
   }, [pubkey, enabled, loadBatch]);
 
   const loadMore = useCallback(() => {
-    if (loadingMore || cursor >= followerPubkeys.length || !pubkey) return;
+    const pubkeys = collectedPubkeysRef.current;
+    if (loadingMore || cursor >= pubkeys.length || !pubkey) return;
 
     setLoadingMore(true);
-    const nextBatch = followerPubkeys.slice(cursor, cursor + PAGE_SIZE);
+    const nextBatch = pubkeys.slice(cursor, cursor + PAGE_SIZE);
     loadBatch(nextBatch, pubkey, () => {
       setCursor((prev) => prev + PAGE_SIZE);
       setLoadingMore(false);
     });
-  }, [cursor, followerPubkeys, loadingMore, loadBatch, pubkey]);
+  }, [cursor, loadingMore, loadBatch, pubkey]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -241,6 +247,7 @@ export function useFollowers(pubkey: string | null, enabled = true): UseFollower
       cancelBatch?.();
       displayedRef.current.clear();
       seenPubkeysRef.current.clear();
+      collectedPubkeysRef.current = [];
     };
   }, []);
 
@@ -249,9 +256,9 @@ export function useFollowers(pubkey: string | null, enabled = true): UseFollower
     loading: isStreaming && followers.length === 0,
     loadingMore,
     error: null,
-    hasMore: cursor < followerPubkeys.length,
+    hasMore: cursor < collectedPubkeysRef.current.length,
     loadMore,
-    total: followerPubkeys.length,
+    total: followerCount,
     isStreaming,
   };
 }

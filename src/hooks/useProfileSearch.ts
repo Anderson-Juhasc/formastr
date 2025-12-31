@@ -12,6 +12,8 @@ interface UseProfileSearchResult {
 }
 
 const DEBOUNCE_MS = 300;
+// Maximum number of search results to prevent memory growth
+const MAX_SEARCH_RESULTS = 50;
 
 export function useProfileSearch(): UseProfileSearchResult {
   const [results, setResults] = useState<Profile[]>([]);
@@ -68,6 +70,9 @@ export function useProfileSearch(): UseProfileSearchResult {
           // Deduplicate
           if (seenPubkeys.has(result.profile.pubkey)) return;
           seenPubkeys.add(result.profile.pubkey);
+
+          // Bound the results to prevent memory growth
+          if (searchResults.length >= MAX_SEARCH_RESULTS) return;
 
           searchResults.push(result.profile);
           // Update results incrementally
