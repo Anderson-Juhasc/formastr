@@ -4,6 +4,7 @@ import { memo } from 'react';
 import { Note, Profile } from '@/types/nostr';
 import { Avatar } from '@/components/ui/Avatar';
 import { Card } from '@/components/ui/Card';
+import { TextWithEmoji } from '@/components/ui/TextWithEmoji';
 import { NoteContent } from './NoteContent';
 import { NoteStatsBar } from './NoteStats';
 import { useNoteStats } from '@/hooks/useNoteStats';
@@ -65,7 +66,7 @@ export const NoteCard = memo(function NoteCard({ note, author, showAuthor = true
               href={`/${npub}`}
               className="font-semibold text-card-foreground hover:underline truncate"
             >
-              {displayName}
+              <TextWithEmoji text={displayName} emojiTags={author?.emojiTags} />
             </Link>
             <Link
               href={`/note/${noteId}`}
@@ -91,7 +92,7 @@ export const NoteCard = memo(function NoteCard({ note, author, showAuthor = true
                 href={`/${npub}`}
                 className="font-semibold text-card-foreground hover:underline"
               >
-                {displayName}
+                <TextWithEmoji text={displayName} emojiTags={author?.emojiTags} />
               </Link>
               <Link
                 href={`/note/${noteId}`}

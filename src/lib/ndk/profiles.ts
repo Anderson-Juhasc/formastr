@@ -17,6 +17,11 @@ function parseProfileEvent(event: NDKEvent, pubkey: string): Profile {
     return typeof val === 'string' ? val : undefined;
   };
 
+  // Extract NIP-30 emoji tags from the event
+  const emojiTags = event.tags?.filter(
+    (tag) => tag[0] === 'emoji' && tag[1] && tag[2]
+  );
+
   return {
     pubkey,
     npub: hexToNpub(pubkey),
@@ -28,6 +33,7 @@ function parseProfileEvent(event: NDKEvent, pubkey: string): Profile {
     nip05: getString(profileData.nip05),
     lud16: getString(profileData.lud16),
     website: getString(profileData.website),
+    emojiTags: emojiTags?.length ? emojiTags : undefined,
   };
 }
 

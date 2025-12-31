@@ -5,11 +5,13 @@ import remarkGfm from 'remark-gfm';
 import type { Components } from 'react-markdown';
 import Link from 'next/link';
 import { MentionLink } from '@/components/notes/MentionLink';
+import { TextWithEmoji } from '@/components/ui/TextWithEmoji';
 import { useMemo } from 'react';
 import * as nip19 from '@/lib/nostr/nips/nip19';
 
 interface ProfileAboutProps {
   about: string;
+  emojiTags?: string[][];
 }
 
 // Regex to find nostr: URIs and bare bech32 identifiers
@@ -89,8 +91,8 @@ function parseNostrReferences(text: string): TextSegment[] {
   return segments;
 }
 
-// Custom text renderer that handles nostr references
-function TextWithNostrRefs({ children }: { children: string }) {
+// Custom text renderer that handles nostr references and emojis
+function TextWithNostrRefs({ children, emojiTags }: { children: string; emojiTags?: string[][] }) {
   const segments = useMemo(() => parseNostrReferences(children), [children]);
 
   return (
@@ -117,96 +119,100 @@ function TextWithNostrRefs({ children }: { children: string }) {
             </Link>
           );
         }
-        return <span key={i}>{segment.content}</span>;
+        // Render text with emoji support
+        return <TextWithEmoji key={i} text={segment.content} emojiTags={emojiTags} />;
       })}
     </>
   );
 }
 
-const components: Components = {
-  // Override text nodes to handle nostr references
-  p: ({ children }) => {
-    const processChildren = (child: React.ReactNode, index: number): React.ReactNode => {
-      if (typeof child === 'string') {
-        return <TextWithNostrRefs key={index}>{child}</TextWithNostrRefs>;
-      }
-      return child;
-    };
+// Create markdown components with emoji support
+function createMarkdownComponents(emojiTags?: string[][]): Components {
+  const processChildren = (child: React.ReactNode, index: number): React.ReactNode => {
+    if (typeof child === 'string') {
+      return <TextWithNostrRefs key={index} emojiTags={emojiTags}>{child}</TextWithNostrRefs>;
+    }
+    return child;
+  };
 
-    return (
+  return {
+    // Override text nodes to handle nostr references and emojis
+    p: ({ children }) => (
       <p className="mb-2 last:mb-0">
         {Array.isArray(children) ? children.map((child, i) => processChildren(child, i)) : processChildren(children, 0)}
       </p>
-    );
-  },
+    ),
 
-  // Headings
-  h1: ({ children }) => <h1 className="text-xl font-bold mt-4 mb-2">{children}</h1>,
-  h2: ({ children }) => <h2 className="text-lg font-bold mt-3 mb-2">{children}</h2>,
-  h3: ({ children }) => <h3 className="text-base font-bold mt-2 mb-1">{children}</h3>,
+    // Headings
+    h1: ({ children }) => <h1 className="text-xl font-bold mt-4 mb-2">{children}</h1>,
+    h2: ({ children }) => <h2 className="text-lg font-bold mt-3 mb-2">{children}</h2>,
+    h3: ({ children }) => <h3 className="text-base font-bold mt-2 mb-1">{children}</h3>,
 
-  // Links
-  a: ({ href, children }) => (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="text-primary hover:underline break-all"
-    >
-      {children}
-    </a>
-  ),
+    // Links
+    a: ({ href, children }) => (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-primary hover:underline break-all"
+      >
+        {children}
+      </a>
+    ),
 
-  // Lists
-  ul: ({ children }) => <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>,
-  ol: ({ children }) => <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>,
-  li: ({ children }) => <li className="ml-2">{children}</li>,
+    // Lists
+    ul: ({ children }) => <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>,
+    ol: ({ children }) => <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>,
+    li: ({ children }) => <li className="ml-2">{children}</li>,
 
-  // Code
-  code: ({ className, children }) => {
-    const isBlock = className?.includes('language-');
-    if (isBlock) {
+    // Code
+    code: ({ className, children }) => {
+      const isBlock = className?.includes('language-');
+      if (isBlock) {
+        return (
+          <code className="block bg-muted text-foreground p-3 rounded-lg text-sm font-mono overflow-x-auto mb-2">
+            {children}
+          </code>
+        );
+      }
       return (
-        <code className="block bg-muted text-foreground p-3 rounded-lg text-sm font-mono overflow-x-auto mb-2">
+        <code className="bg-muted text-foreground px-1.5 py-0.5 rounded text-sm font-mono">
           {children}
         </code>
       );
-    }
-    return (
-      <code className="bg-muted text-foreground px-1.5 py-0.5 rounded text-sm font-mono">
+    },
+    pre: ({ children }) => <pre className="mb-2">{children}</pre>,
+
+    // Blockquote
+    blockquote: ({ children }) => (
+      <blockquote className="border-l-4 border-primary/50 pl-4 italic text-muted-foreground mb-2">
         {children}
-      </code>
-    );
-  },
-  pre: ({ children }) => <pre className="mb-2">{children}</pre>,
+      </blockquote>
+    ),
 
-  // Blockquote
-  blockquote: ({ children }) => (
-    <blockquote className="border-l-4 border-primary/50 pl-4 italic text-muted-foreground mb-2">
-      {children}
-    </blockquote>
-  ),
+    // Styling
+    strong: ({ children }) => <strong className="font-bold">{children}</strong>,
+    em: ({ children }) => <em className="italic">{children}</em>,
+    del: ({ children }) => <del className="line-through text-muted-foreground">{children}</del>,
 
-  // Styling
-  strong: ({ children }) => <strong className="font-bold">{children}</strong>,
-  em: ({ children }) => <em className="italic">{children}</em>,
-  del: ({ children }) => <del className="line-through text-muted-foreground">{children}</del>,
+    // Images
+    img: ({ src, alt }) => (
+      <img
+        src={src}
+        alt={alt || ''}
+        className="max-w-full h-auto max-h-64 rounded-lg my-2"
+        loading="lazy"
+      />
+    ),
 
-  // Images
-  img: ({ src, alt }) => (
-    <img
-      src={src}
-      alt={alt || ''}
-      className="max-w-full h-auto max-h-64 rounded-lg my-2"
-      loading="lazy"
-    />
-  ),
+    // Horizontal rule
+    hr: () => <hr className="border-border my-4" />,
+  };
+}
 
-  // Horizontal rule
-  hr: () => <hr className="border-border my-4" />,
-};
+export function ProfileAbout({ about, emojiTags }: ProfileAboutProps) {
+  const components = useMemo(() => createMarkdownComponents(emojiTags), [emojiTags]);
 
-export function ProfileAbout({ about }: ProfileAboutProps) {
   return (
     <div className="text-sm">
       <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>

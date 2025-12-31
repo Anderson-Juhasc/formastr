@@ -10,6 +10,7 @@ export interface Profile {
   nip05valid?: boolean;
   lud16?: string;
   website?: string;
+  emojiTags?: string[][]; // NIP-30 custom emoji tags
 }
 
 export interface Note {

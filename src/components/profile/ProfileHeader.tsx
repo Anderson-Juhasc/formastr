@@ -6,6 +6,7 @@ import { Avatar } from '@/components/ui/Avatar';
 import { Button } from '@/components/ui/Button';
 import { QRModal } from '@/components/ui/QRModal';
 import { ImageModal } from '@/components/ui/ImageModal';
+import { TextWithEmoji } from '@/components/ui/TextWithEmoji';
 import { ProfileAbout } from './ProfileAbout';
 import { formatNpub } from '@/lib/utils';
 import { fetchRelayList } from '@/lib/ndk/relays';
@@ -86,7 +87,7 @@ export function ProfileHeader({ profile }: ProfileHeaderProps) {
           />
           <div className="flex-1 pb-2">
             <h1 className="text-2xl font-bold text-foreground">
-              {displayName}
+              <TextWithEmoji text={displayName} emojiTags={profile.emojiTags} />
             </h1>
             {profile.nip05 && (
               <p className="text-primary font-semibold flex items-center gap-1">
@@ -206,7 +207,7 @@ export function ProfileHeader({ profile }: ProfileHeaderProps) {
 
         {profile.about && (
           <div className="mt-4 text-card-foreground">
-            <ProfileAbout about={profile.about} />
+            <ProfileAbout about={profile.about} emojiTags={profile.emojiTags} />
           </div>
         )}
 
