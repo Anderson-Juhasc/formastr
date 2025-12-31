@@ -131,8 +131,13 @@ export function fetchProfileStreaming(
   };
 }
 
+// Request coalescing: prevent duplicate simultaneous fetches for the same pubkey
+const pendingProfileRequests = new Map<string, Promise<Profile>>();
+
 /**
- * Fetch profile (Promise-based)
+ * Fetch profile (Promise-based) with request coalescing
+ * If the same pubkey is requested multiple times simultaneously,
+ * only one network request is made and the result is shared.
  */
 export async function fetchProfile(pubkey: string, verifyNip05 = false): Promise<Profile> {
   // Validate input
@@ -140,7 +145,15 @@ export async function fetchProfile(pubkey: string, verifyNip05 = false): Promise
     return createEmptyProfile(pubkey || '');
   }
 
-  return new Promise((resolve) => {
+  // Check if there's already a pending request for this pubkey
+  const cacheKey = `${pubkey}:${verifyNip05}`;
+  const pending = pendingProfileRequests.get(cacheKey);
+  if (pending) {
+    return pending;
+  }
+
+  // Create new request and store it
+  const request = new Promise<Profile>((resolve) => {
     let profile: Profile = createEmptyProfile(pubkey);
 
     const { cancel } = fetchProfileStreaming(
@@ -162,7 +175,13 @@ export async function fetchProfile(pubkey: string, verifyNip05 = false): Promise
         resolve(profile);
       }
     );
+  }).finally(() => {
+    // Clean up pending request when done
+    pendingProfileRequests.delete(cacheKey);
   });
+
+  pendingProfileRequests.set(cacheKey, request);
+  return request;
 }
 
 /**
