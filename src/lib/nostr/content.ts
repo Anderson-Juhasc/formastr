@@ -181,12 +181,12 @@ function convertFragment(fragment: ParsedFragment, emojiMap: Map<string, string>
         };
       }
 
-      // Default to image for unknown media
+      // Unknown media type - treat as regular URL link instead of assuming image
+      // This prevents URLs like github.com/releases/tag/v0.17.4 from being treated as images
       return {
-        type: 'image',
+        type: 'url',
         content: url,
         href: url,
-        mimeType,
       };
     }
 
