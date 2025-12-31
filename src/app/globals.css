@@ -1,193 +1,245 @@
 @import "tailwindcss";
 
 /*
- * DESIGN SYSTEM: High-Contrast Theme
- * ==================================
+ * DESIGN SYSTEM: Refined Theme
+ * ============================
  *
- * PRINCIPLES:
- * 1. All body text: minimum 7:1 contrast (WCAG AAA)
- * 2. Muted/secondary text: minimum 4.5:1 contrast (WCAG AA)
- * 3. Borders and interactive elements: minimum 3:1 contrast
- * 4. Page vs Surface: obvious visual separation
- * 5. Single color family (zinc) for consistency
- *
- * TOKEN STRUCTURE (ShadCN-compatible):
- * - background/foreground: page level
- * - card/card-foreground: surface level
- * - primary/secondary/accent/destructive: semantic actions
- * - muted/muted-foreground: de-emphasized content
- * - border/input/ring: interactive elements
+ * A polished, modern design system with:
+ * - Soft shadows and subtle borders
+ * - Smooth transitions and micro-interactions
+ * - Balanced contrast for readability
+ * - Cohesive violet/purple accent palette
  */
 
 @theme {
-  /* Light theme colors - defined as Tailwind theme values */
-  --color-background: #f4f4f5;
-  --color-foreground: #09090b;
+  /* Light theme colors */
+  --color-background: #fafafa;
+  --color-foreground: #18181b;
 
   --color-card: #ffffff;
-  --color-card-foreground: #09090b;
+  --color-card-foreground: #18181b;
 
   --color-popover: #ffffff;
-  --color-popover-foreground: #09090b;
+  --color-popover-foreground: #18181b;
 
-  --color-primary: #6d28d9;
+  --color-primary: #7c3aed;
   --color-primary-foreground: #ffffff;
 
-  --color-secondary: #e4e4e7;
-  --color-secondary-foreground: #18181b;
+  --color-secondary: #f4f4f5;
+  --color-secondary-foreground: #3f3f46;
 
-  --color-muted: #e4e4e7;
-  --color-muted-foreground: #52525b;
+  --color-muted: #f4f4f5;
+  --color-muted-foreground: #71717a;
 
-  --color-accent: #ede9fe;
-  --color-accent-foreground: #4c1d95;
+  --color-accent: #f5f3ff;
+  --color-accent-foreground: #5b21b6;
 
-  --color-destructive: #dc2626;
+  --color-destructive: #ef4444;
   --color-destructive-foreground: #ffffff;
 
-  --color-border: #a1a1aa;
-  --color-input: #71717a;
-  --color-ring: #6d28d9;
+  --color-border: #e4e4e7;
+  --color-input: #d4d4d8;
+  --color-ring: #7c3aed;
 
   /* Additional semantic colors */
-  --color-success: #16a34a;
+  --color-success: #10b981;
   --color-success-foreground: #ffffff;
-  --color-warning: #d97706;
+  --color-warning: #f59e0b;
   --color-warning-foreground: #ffffff;
 }
 
 :root {
   /* CSS custom properties for runtime access */
-  --background: #f4f4f5;
-  --foreground: #09090b;
+  --background: #fafafa;
+  --foreground: #18181b;
 
   --card: #ffffff;
-  --card-foreground: #09090b;
+  --card-foreground: #18181b;
 
   --popover: #ffffff;
-  --popover-foreground: #09090b;
+  --popover-foreground: #18181b;
 
-  --primary: #6d28d9;
+  --primary: #7c3aed;
   --primary-foreground: #ffffff;
 
-  --secondary: #e4e4e7;
-  --secondary-foreground: #18181b;
+  --secondary: #f4f4f5;
+  --secondary-foreground: #3f3f46;
 
-  --muted: #e4e4e7;
-  --muted-foreground: #52525b;
+  --muted: #f4f4f5;
+  --muted-foreground: #71717a;
 
-  --accent: #ede9fe;
-  --accent-foreground: #4c1d95;
-
-  --destructive: #dc2626;
-  --destructive-foreground: #ffffff;
-
-  --border: #a1a1aa;
-  --input: #71717a;
-  --ring: #6d28d9;
-
-  --success: #16a34a;
-  --warning: #d97706;
-
-  --radius: 0.5rem;
-}
-
-.dark {
-  --background: #09090b;
-  --foreground: #fafafa;
-
-  --card: #18181b;
-  --card-foreground: #fafafa;
-
-  --popover: #18181b;
-  --popover-foreground: #fafafa;
-
-  --primary: #a78bfa;
-  --primary-foreground: #09090b;
-
-  --secondary: #27272a;
-  --secondary-foreground: #fafafa;
-
-  --muted: #27272a;
-  --muted-foreground: #a1a1aa;
-
-  --accent: #2e1065;
-  --accent-foreground: #c4b5fd;
+  --accent: #f5f3ff;
+  --accent-foreground: #5b21b6;
 
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
 
-  --border: #3f3f46;
-  --input: #52525b;
+  --border: #e4e4e7;
+  --input: #d4d4d8;
+  --ring: #7c3aed;
+
+  --success: #10b981;
+  --warning: #f59e0b;
+
+  --radius: 0.75rem;
+
+  /* Shadow system */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.03);
+  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.05), 0 4px 6px -4px rgb(0 0 0 / 0.05);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.05), 0 8px 10px -6px rgb(0 0 0 / 0.05);
+}
+
+.dark {
+  --background: #0a0a0b;
+  --foreground: #fafafa;
+
+  --card: #141416;
+  --card-foreground: #fafafa;
+
+  --popover: #141416;
+  --popover-foreground: #fafafa;
+
+  --primary: #a78bfa;
+  --primary-foreground: #0a0a0b;
+
+  --secondary: #1f1f23;
+  --secondary-foreground: #e4e4e7;
+
+  --muted: #1f1f23;
+  --muted-foreground: #a1a1aa;
+
+  --accent: #1e1b4b;
+  --accent-foreground: #c4b5fd;
+
+  --destructive: #f87171;
+  --destructive-foreground: #0a0a0b;
+
+  --border: #27272a;
+  --input: #3f3f46;
   --ring: #a78bfa;
 
-  --success: #22c55e;
-  --warning: #f59e0b;
+  --success: #34d399;
+  --warning: #fbbf24;
+
+  /* Dark mode shadows with subtle glow */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.4);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.3), 0 4px 6px -4px rgb(0 0 0 / 0.3);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.3), 0 8px 10px -6px rgb(0 0 0 / 0.3);
 }
 
 /* Override Tailwind theme in dark mode */
 .dark {
-  --color-background: #09090b;
+  --color-background: #0a0a0b;
   --color-foreground: #fafafa;
-  --color-card: #18181b;
+  --color-card: #141416;
   --color-card-foreground: #fafafa;
-  --color-popover: #18181b;
+  --color-popover: #141416;
   --color-popover-foreground: #fafafa;
   --color-primary: #a78bfa;
-  --color-primary-foreground: #09090b;
-  --color-secondary: #27272a;
-  --color-secondary-foreground: #fafafa;
-  --color-muted: #27272a;
+  --color-primary-foreground: #0a0a0b;
+  --color-secondary: #1f1f23;
+  --color-secondary-foreground: #e4e4e7;
+  --color-muted: #1f1f23;
   --color-muted-foreground: #a1a1aa;
-  --color-accent: #2e1065;
+  --color-accent: #1e1b4b;
   --color-accent-foreground: #c4b5fd;
-  --color-destructive: #ef4444;
-  --color-destructive-foreground: #ffffff;
-  --color-border: #3f3f46;
-  --color-input: #52525b;
+  --color-destructive: #f87171;
+  --color-destructive-foreground: #0a0a0b;
+  --color-border: #27272a;
+  --color-input: #3f3f46;
   --color-ring: #a78bfa;
-  --color-success: #22c55e;
-  --color-warning: #f59e0b;
+  --color-success: #34d399;
+  --color-warning: #fbbf24;
 }
 
 /* Base styles */
 body {
   background-color: var(--card);
   color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Text selection - high contrast */
+/* Smooth transitions globally */
+* {
+  transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+/* Disable transitions for elements that shouldn't animate */
+*:not([class*="transition"]):not(button):not(a):not(input) {
+  transition-duration: 0ms;
+}
+
+/* Re-enable for interactive elements */
+button, a, input, [role="button"], .transition-all, .transition-colors {
+  transition-duration: 150ms;
+}
+
+/* Text selection */
 ::selection {
-  background-color: #c4b5fd;
-  color: #09090b;
+  background-color: #ddd6fe;
+  color: #18181b;
 }
 
 .dark ::selection {
-  background-color: #4c1d95;
+  background-color: #5b21b6;
   color: #fafafa;
 }
 
-/* Focus styles - bold and visible */
+/* Focus styles - elegant ring */
 :focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: 0 0 0 2px var(--card), 0 0 0 4px var(--ring);
 }
 
-/* Scrollbar styling for dark mode */
-.dark ::-webkit-scrollbar {
+/* Scrollbar styling */
+::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
-.dark ::-webkit-scrollbar-track {
-  background: var(--muted);
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
 }
 
 .dark ::-webkit-scrollbar-thumb {
   background: var(--border);
-  border-radius: 4px;
 }
 
 .dark ::-webkit-scrollbar-thumb:hover {
   background: var(--input);
+}
+
+/* Custom utility classes */
+.glass {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.dark .glass {
+  background: rgba(20, 20, 22, 0.8);
+}
+
+/* Gradient text utility */
+.gradient-text {
+  background: linear-gradient(135deg, var(--primary) 0%, #c084fc 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }

@@ -45,15 +45,15 @@ const SearchResultItem = memo(function SearchResultItem({
     <button
       type="button"
       onClick={onClick}
-      className={`w-full flex items-center gap-3 px-3 py-2 text-left transition-colors ${
-        isSelected ? 'bg-muted' : 'hover:bg-muted'
+      className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-all ${
+        isSelected ? 'bg-accent' : 'hover:bg-muted/50'
       }`}
     >
       <Avatar src={profile.picture} alt={displayName} size="sm" />
       <div className="flex-1 min-w-0">
         <p className="font-medium text-foreground truncate">{displayName}</p>
         {profile.nip05 ? (
-          <p className="text-xs text-primary truncate">{profile.nip05}</p>
+          <p className="text-xs text-primary/80 truncate">{profile.nip05}</p>
         ) : (
           <p className="text-xs text-muted-foreground truncate">{formatNpub(profile.npub)}</p>
         )}
@@ -190,24 +190,26 @@ export function SearchBar() {
         {showDropdown && (
           <div
             ref={dropdownRef}
-            className="absolute top-full left-0 right-0 mt-1 bg-card border-2 border-border rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto"
-            style={{ right: '80px' }} // Account for button width
+            className="absolute top-full left-0 mt-2 bg-card border border-border/60 rounded-xl shadow-[var(--shadow-lg)] z-50 max-h-80 overflow-y-auto overflow-x-hidden"
+            style={{ right: '80px' }}
           >
             {results.length > 0 ? (
-              results.map((profile, index) => (
-                <SearchResultItem
-                  key={profile.pubkey}
-                  profile={profile}
-                  onClick={() => navigateToProfile(profile.npub)}
-                  isSelected={index === selectedIndex}
-                />
-              ))
+              <div className="py-1">
+                {results.map((profile, index) => (
+                  <SearchResultItem
+                    key={profile.pubkey}
+                    profile={profile}
+                    onClick={() => navigateToProfile(profile.npub)}
+                    isSelected={index === selectedIndex}
+                  />
+                ))}
+              </div>
             ) : loading ? (
-              <div className="p-3 space-y-2">
+              <div className="p-4 space-y-3">
                 {[...Array(3)].map((_, i) => (
                   <div key={i} className="flex items-center gap-3">
                     <Skeleton className="w-8 h-8 rounded-full" />
-                    <div className="flex-1 space-y-1">
+                    <div className="flex-1 space-y-1.5">
                       <Skeleton className="h-4 w-24" />
                       <Skeleton className="h-3 w-32" />
                     </div>

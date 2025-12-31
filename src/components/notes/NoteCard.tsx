@@ -35,7 +35,7 @@ export const NoteCard = memo(function NoteCard({ note, author, showAuthor = true
   const { stats, loading: statsLoading } = useNoteStats(note.id, showStats && isVisible);
 
   return (
-    <Card ref={statsRef} className="hover:shadow-lg transition-all">
+    <Card ref={statsRef} className="hover:shadow-[var(--shadow-lg)] hover:border-border transition-all">
       {/* Reply indicator */}
       {replyToId && (
         <Link

@@ -142,11 +142,11 @@ export default function RootLayout({
         <ThemeProvider>
           <QueryProvider>
             <CacheInitializer />
-            <header className="border-b-2 border-border bg-card shadow-md" role="banner">
-              <nav className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between gap-4" aria-label="Main navigation">
+            <header className="sticky top-0 z-40 border-b border-border/50 bg-card/80 backdrop-blur-xl" role="banner">
+              <nav className="max-w-4xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4" aria-label="Main navigation">
                 <Link
                   href="/"
-                  className="text-xl font-bold text-primary hover:text-primary/80 transition-colors shrink-0"
+                  className="text-xl font-bold text-primary hover:opacity-80 transition-opacity shrink-0"
                   aria-label="Formastr - Home"
                 >
                   Formastr
@@ -155,16 +155,16 @@ export default function RootLayout({
                 <ThemeToggle />
               </nav>
             </header>
-            <main className="pt-8 pb-16 bg-background" role="main">
-              <div className="max-w-4xl mx-auto px-4">
+            <main className="pt-8 pb-20 bg-background min-h-[calc(100vh-8rem)]" role="main">
+              <div className="max-w-4xl mx-auto px-4 sm:px-6">
                 <PageErrorBoundary>
                   {children}
                 </PageErrorBoundary>
               </div>
             </main>
-            <footer className="border-t-2 border-border bg-card" role="contentinfo">
-              <div className="max-w-4xl mx-auto px-4 py-8 text-center text-sm text-muted-foreground">
-                <p>{SITE_NAME} - Decentralized Nostr Profile Viewer</p>
+            <footer className="border-t border-border/50 bg-card" role="contentinfo">
+              <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 text-center text-sm text-muted-foreground">
+                <p className="opacity-80">{SITE_NAME} - Decentralized Nostr Profile Viewer</p>
               </div>
             </footer>
           </QueryProvider>

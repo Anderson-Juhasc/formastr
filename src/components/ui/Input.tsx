@@ -10,23 +10,23 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         ref={ref}
         className={cn(
           // Sizing
-          'w-full h-10 px-4 py-2',
+          'w-full h-11 px-4 py-2',
           // Shape
-          'rounded-lg',
-          // Border: uses input token (darker than border for emphasis)
-          'border-2 border-input',
+          'rounded-xl',
+          // Border
+          'border border-border',
           // Surface
-          'bg-card text-card-foreground',
-          // Shadow for depth
-          'shadow-sm',
-          // Placeholder: muted but readable
-          'placeholder:text-muted-foreground',
+          'bg-background text-foreground',
+          // Placeholder
+          'placeholder:text-muted-foreground/70',
           // Focus state
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:border-primary',
+          // Hover state
+          'hover:border-muted-foreground/50',
           // Disabled state
           'disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-muted',
           // Transition
-          'transition-shadow transition-colors',
+          'transition-all',
           className
         )}
         {...props}

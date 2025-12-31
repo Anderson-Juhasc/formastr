@@ -30,8 +30,9 @@ export function Avatar({ src, alt, size = 'md', className, onClick }: AvatarProp
   const fallback = (
     <div
       className={cn(
-        'rounded-full bg-primary flex items-center justify-center text-primary-foreground font-semibold',
+        'rounded-full bg-gradient-to-br from-primary to-purple-400 dark:to-purple-500 flex items-center justify-center text-primary-foreground font-medium shadow-[var(--shadow-sm)]',
         sizeClasses[size],
+        clickableClass,
         className
       )}
       onClick={onClick}

@@ -12,12 +12,12 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
       <div
         ref={ref}
         className={cn(
-          // Surface: white in light mode, dark zinc in dark mode
+          // Surface
           'bg-card text-card-foreground',
-          // Border: visible, uses border token
-          'rounded-xl border-2 border-border',
-          // Padding and shadow
-          'p-4 shadow-md',
+          // Subtle border and rounded corners
+          'rounded-2xl border border-border/60',
+          // Refined shadow
+          'p-5 shadow-[var(--shadow-md)]',
           className
         )}
       >

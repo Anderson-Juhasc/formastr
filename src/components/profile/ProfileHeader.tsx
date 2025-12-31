@@ -58,7 +58,7 @@ export function ProfileHeader({ profile }: ProfileHeaderProps) {
   return (
     <div className="relative">
       <div
-        className={`relative h-32 md:h-48 bg-gradient-to-r from-primary to-primary/80 rounded-xl overflow-hidden ${profile.banner && !bannerError && profile.banner.startsWith('https://') ? 'cursor-pointer' : ''}`}
+        className={`relative h-32 md:h-48 bg-gradient-to-br from-primary via-primary/80 to-purple-400 dark:to-purple-600 rounded-2xl overflow-hidden ${profile.banner && !bannerError && profile.banner.startsWith('https://') ? 'cursor-pointer' : ''}`}
         onClick={profile.banner && !bannerError && profile.banner.startsWith('https://') ? () => setShowBanner(true) : undefined}
       >
         {profile.banner && !bannerError && profile.banner.startsWith('https://') && (
@@ -134,21 +134,21 @@ export function ProfileHeader({ profile }: ProfileHeaderProps) {
                     className="fixed inset-0 z-10"
                     onClick={() => setShowCopyMenu(false)}
                   />
-                  <div className="absolute right-0 mt-1 w-36 bg-card border border-border rounded-lg shadow-lg z-20">
+                  <div className="absolute right-0 mt-2 w-36 bg-card border border-border/60 rounded-xl shadow-[var(--shadow-lg)] z-20 py-1 overflow-hidden">
                     <button
-                      className="w-full px-3 py-2 text-left text-sm hover:bg-muted rounded-t-lg transition-colors"
+                      className="w-full px-4 py-2 text-left text-sm hover:bg-muted/50 transition-colors"
                       onClick={() => copyToClipboard(profile.npub, 'npub')}
                     >
                       npub
                     </button>
                     <button
-                      className="w-full px-3 py-2 text-left text-sm hover:bg-muted transition-colors"
+                      className="w-full px-4 py-2 text-left text-sm hover:bg-muted/50 transition-colors"
                       onClick={() => copyToClipboard(profile.pubkey, 'hex')}
                     >
                       hex
                     </button>
                     <button
-                      className="w-full px-3 py-2 text-left text-sm hover:bg-muted rounded-b-lg transition-colors"
+                      className="w-full px-4 py-2 text-left text-sm hover:bg-muted/50 transition-colors"
                       onClick={() => copyToClipboard(nprofile, 'nprofile')}
                     >
                       nprofile
@@ -182,17 +182,17 @@ export function ProfileHeader({ profile }: ProfileHeaderProps) {
                     className="fixed inset-0 z-10"
                     onClick={() => setShowOpenMenu(false)}
                   />
-                  <div className="absolute right-0 mt-1 w-36 bg-card border border-border rounded-lg shadow-lg z-20">
+                  <div className="absolute right-0 mt-2 w-36 bg-card border border-border/60 rounded-xl shadow-[var(--shadow-lg)] z-20 py-1 overflow-hidden">
                     <a
                       href={`web+nostr:${nprofile}`}
-                      className="block w-full px-3 py-2 text-left text-sm hover:bg-muted rounded-t-lg transition-colors"
+                      className="block w-full px-4 py-2 text-left text-sm hover:bg-muted/50 transition-colors"
                       onClick={() => setShowOpenMenu(false)}
                     >
                       Web app
                     </a>
                     <a
                       href={`nostr:${nprofile}`}
-                      className="block w-full px-3 py-2 text-left text-sm hover:bg-muted rounded-b-lg transition-colors"
+                      className="block w-full px-4 py-2 text-left text-sm hover:bg-muted/50 transition-colors"
                       onClick={() => setShowOpenMenu(false)}
                     >
                       App
@@ -256,7 +256,7 @@ export function ProfileHeader({ profile }: ProfileHeaderProps) {
       )}
 
       {toast && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-foreground text-background px-4 py-2 rounded-lg shadow-lg text-sm font-medium z-50 animate-in fade-in slide-in-from-bottom-2 duration-200">
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-foreground text-background px-4 py-2.5 rounded-xl shadow-[var(--shadow-xl)] text-sm font-medium z-50 animate-in fade-in slide-in-from-bottom-2 duration-200">
           {toast}
         </div>
       )}
