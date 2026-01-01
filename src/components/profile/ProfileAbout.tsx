@@ -144,9 +144,21 @@ function createMarkdownComponents(emojiTags?: string[][]): Components {
     ),
 
     // Headings
-    h1: ({ children }) => <h1 className="text-xl font-bold mt-4 mb-2">{children}</h1>,
-    h2: ({ children }) => <h2 className="text-lg font-bold mt-3 mb-2">{children}</h2>,
-    h3: ({ children }) => <h3 className="text-base font-bold mt-2 mb-1">{children}</h3>,
+    h1: ({ children }) => (
+      <h1 className="text-xl font-bold mt-4 mb-2">
+        {Array.isArray(children) ? children.map((child, i) => processChildren(child, i)) : processChildren(children, 0)}
+      </h1>
+    ),
+    h2: ({ children }) => (
+      <h2 className="text-lg font-bold mt-3 mb-2">
+        {Array.isArray(children) ? children.map((child, i) => processChildren(child, i)) : processChildren(children, 0)}
+      </h2>
+    ),
+    h3: ({ children }) => (
+      <h3 className="text-base font-bold mt-2 mb-1">
+        {Array.isArray(children) ? children.map((child, i) => processChildren(child, i)) : processChildren(children, 0)}
+      </h3>
+    ),
 
     // Links
     a: ({ href, children }) => (
@@ -163,7 +175,11 @@ function createMarkdownComponents(emojiTags?: string[][]): Components {
     // Lists
     ul: ({ children }) => <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>,
     ol: ({ children }) => <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>,
-    li: ({ children }) => <li className="ml-2">{children}</li>,
+    li: ({ children }) => (
+      <li className="ml-2">
+        {Array.isArray(children) ? children.map((child, i) => processChildren(child, i)) : processChildren(children, 0)}
+      </li>
+    ),
 
     // Code
     code: ({ className, children }) => {
@@ -186,7 +202,7 @@ function createMarkdownComponents(emojiTags?: string[][]): Components {
     // Blockquote
     blockquote: ({ children }) => (
       <blockquote className="border-l-4 border-primary/50 pl-4 italic text-muted-foreground mb-2">
-        {children}
+        {Array.isArray(children) ? children.map((child, i) => processChildren(child, i)) : processChildren(children, 0)}
       </blockquote>
     ),
 
