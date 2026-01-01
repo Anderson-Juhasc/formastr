@@ -54,16 +54,28 @@ export function useFollowing(pubkey: string | null, enabled = true): UseFollowin
       return new Promise<FollowEntry[]>((resolve) => {
         let latestList: FollowEntry[] = [];
         let resolved = false;
+        let streamCancel: (() => void) | null = null;
+
+        const cleanup = () => {
+          // Remove abort listener to prevent memory leak
+          signal?.removeEventListener('abort', abortHandler);
+        };
 
         const doResolve = () => {
           if (!resolved) {
             resolved = true;
+            cleanup();
             resolve(latestList);
           }
         };
 
-        // Resolve with current data if aborted
-        signal?.addEventListener('abort', doResolve);
+        // Handler for abort signal - must be named for removal
+        const abortHandler = () => {
+          streamCancel?.();
+          doResolve();
+        };
+
+        signal?.addEventListener('abort', abortHandler);
 
         const { cancel } = fetchFollowingStreaming(
           pubkey,
@@ -76,8 +88,7 @@ export function useFollowing(pubkey: string | null, enabled = true): UseFollowin
           }
         );
 
-        // Cancel subscription if query is aborted
-        signal?.addEventListener('abort', cancel);
+        streamCancel = cancel;
       });
     },
     enabled: !!pubkey && enabled,

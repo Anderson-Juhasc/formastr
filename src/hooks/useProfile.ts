@@ -1,7 +1,6 @@
 'use client';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef } from 'react';
 import { Profile } from '@/types/nostr';
 import { fetchProfileStreaming } from '@/lib/ndk/profiles';
 import { resolveIdentifier } from '@/lib/nostr/keys';
@@ -17,31 +16,6 @@ interface UseProfileResult {
 async function resolvePubkey(identifier: string): Promise<string> {
   const { pubkey } = await resolveIdentifier(identifier);
   return pubkey;
-}
-
-// Fetch profile with streaming updates
-function fetchProfile(
-  pubkey: string,
-  onUpdate: (profile: Profile) => void
-): Promise<Profile | null> {
-  return new Promise((resolve) => {
-    let latestProfile: Profile | null = null;
-
-    const { cancel } = fetchProfileStreaming(
-      pubkey,
-      (profile) => {
-        latestProfile = profile;
-        onUpdate(profile);
-      },
-      () => {
-        // EOSE: resolve with whatever we have
-        resolve(latestProfile);
-      }
-    );
-
-    // Cleanup is handled by useEffect
-    return cancel;
-  });
 }
 
 export function useProfile(identifier: string): UseProfileResult {
@@ -72,16 +46,28 @@ export function useProfile(identifier: string): UseProfileResult {
       return new Promise<Profile | null>((resolve) => {
         let latestProfile: Profile | null = null;
         let resolved = false;
+        let streamCancel: (() => void) | null = null;
+
+        const cleanup = () => {
+          // Remove abort listener to prevent memory leak
+          signal?.removeEventListener('abort', abortHandler);
+        };
 
         const doResolve = () => {
           if (!resolved) {
             resolved = true;
+            cleanup();
             resolve(latestProfile);
           }
         };
 
-        // Resolve with current data if aborted
-        signal?.addEventListener('abort', doResolve);
+        // Handler for abort signal - must be named for removal
+        const abortHandler = () => {
+          streamCancel?.();
+          doResolve();
+        };
+
+        signal?.addEventListener('abort', abortHandler);
 
         const { cancel } = fetchProfileStreaming(
           pubkey,
@@ -100,8 +86,7 @@ export function useProfile(identifier: string): UseProfileResult {
           }
         );
 
-        // Cancel subscription if query is aborted
-        signal?.addEventListener('abort', cancel);
+        streamCancel = cancel;
       });
     },
     enabled: !!pubkey,
