@@ -7,7 +7,7 @@ import { attachDexieCacheLimiter } from './cache-limiter';
 const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
 // Create cache adapter with Dexie (IndexedDB)
-const cacheAdapter = new NDKCacheAdapterDexie({ dbName: 'ndk-cache' });
+const cacheAdapter = new NDKCacheAdapterDexie({ dbName: 'formastr-ndk-cache' });
 
 // Attach cache limiter - more aggressive on mobile
 attachDexieCacheLimiter(cacheAdapter, {
