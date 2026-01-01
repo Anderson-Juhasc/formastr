@@ -3,7 +3,7 @@ import { nip05 } from 'nostr-tools';
 import { Profile } from '@/types/nostr';
 import { hexToNpub } from '../nostr/keys';
 import { ensureConnected, safeSubscribe } from './index';
-import { EOSE_DELAY } from './constants';
+import { EOSE_DELAY, PROFILE_REQUEST_TIMEOUT, PENDING_REQUEST_CLEANUP_INTERVAL } from './constants';
 
 function parseProfileEvent(event: NDKEvent, pubkey: string): Profile {
   let profileData: Record<string, unknown> = {};
@@ -132,12 +132,41 @@ export function fetchProfileStreaming(
 }
 
 // Request coalescing: prevent duplicate simultaneous fetches for the same pubkey
-const pendingProfileRequests = new Map<string, Promise<Profile>>();
+// Store both the promise and the timestamp to detect stale requests
+interface PendingRequest {
+  promise: Promise<Profile>;
+  startedAt: number;
+}
+const pendingProfileRequests = new Map<string, PendingRequest>();
+
+// Periodic cleanup of stale pending requests (in case promises never resolve)
+let cleanupInterval: ReturnType<typeof setInterval> | null = null;
+
+function startPendingRequestCleanup() {
+  if (cleanupInterval || typeof window === 'undefined') return;
+
+  cleanupInterval = setInterval(() => {
+    const now = Date.now();
+    const staleThreshold = PROFILE_REQUEST_TIMEOUT * 2; // Give extra buffer
+
+    for (const [key, { startedAt }] of pendingProfileRequests) {
+      if (now - startedAt > staleThreshold) {
+        pendingProfileRequests.delete(key);
+      }
+    }
+  }, PENDING_REQUEST_CLEANUP_INTERVAL);
+}
+
+// Start cleanup on module load (client-side only)
+if (typeof window !== 'undefined') {
+  startPendingRequestCleanup();
+}
 
 /**
  * Fetch profile (Promise-based) with request coalescing
  * If the same pubkey is requested multiple times simultaneously,
  * only one network request is made and the result is shared.
+ * Includes timeout to prevent hanging requests.
  */
 export async function fetchProfile(pubkey: string, verifyNip05 = false): Promise<Profile> {
   // Validate input
@@ -149,12 +178,38 @@ export async function fetchProfile(pubkey: string, verifyNip05 = false): Promise
   const cacheKey = `${pubkey}:${verifyNip05}`;
   const pending = pendingProfileRequests.get(cacheKey);
   if (pending) {
-    return pending;
+    return pending.promise;
   }
 
   // Create new request and store it
   const request = new Promise<Profile>((resolve) => {
     let profile: Profile = createEmptyProfile(pubkey);
+    let completed = false;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const complete = () => {
+      if (completed) return;
+      completed = true;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+
+      if (verifyNip05 && profile.nip05) {
+        nip05.queryProfile(profile.nip05).then((verified) => {
+          profile.nip05valid = verified?.pubkey === pubkey;
+        }).catch(() => {
+          profile.nip05valid = false;
+        });
+      }
+
+      resolve(profile);
+    };
+
+    // Set a maximum timeout to prevent hanging forever
+    timeoutId = setTimeout(() => {
+      complete();
+    }, PROFILE_REQUEST_TIMEOUT);
 
     const { cancel } = fetchProfileStreaming(
       pubkey,
@@ -163,16 +218,7 @@ export async function fetchProfile(pubkey: string, verifyNip05 = false): Promise
       },
       () => {
         cancel();
-
-        if (verifyNip05 && profile.nip05) {
-          nip05.queryProfile(profile.nip05).then((verified) => {
-            profile.nip05valid = verified?.pubkey === pubkey;
-          }).catch(() => {
-            profile.nip05valid = false;
-          });
-        }
-
-        resolve(profile);
+        complete();
       }
     );
   }).finally(() => {
@@ -180,7 +226,7 @@ export async function fetchProfile(pubkey: string, verifyNip05 = false): Promise
     pendingProfileRequests.delete(cacheKey);
   });
 
-  pendingProfileRequests.set(cacheKey, request);
+  pendingProfileRequests.set(cacheKey, { promise: request, startedAt: Date.now() });
   return request;
 }
 

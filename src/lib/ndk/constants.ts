@@ -8,3 +8,9 @@ export const SINGLE_ITEM_TIMEOUT = 2000;
 
 // Time to wait for relay list fetch
 export const RELAY_FETCH_TIMEOUT = 8000;
+
+// Maximum time for a profile request before forcing completion (prevents hanging)
+export const PROFILE_REQUEST_TIMEOUT = 15000;
+
+// Interval for cleaning up stale pending requests
+export const PENDING_REQUEST_CLEANUP_INTERVAL = 60000;
