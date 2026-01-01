@@ -46,11 +46,10 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
-      { url: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+      { url: '/icons/icon.svg', sizes: 'any', type: 'image/svg+xml' },
     ],
     apple: [
-      { url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icons/icon.svg', sizes: 'any', type: 'image/svg+xml' },
     ],
   },
   openGraph: {
@@ -62,7 +61,7 @@ export const metadata: Metadata = {
     description: SITE_DESCRIPTION,
     images: [
       {
-        url: '/icons/icon-512.png',
+        url: '/icons/icon.svg',
         width: 512,
         height: 512,
         alt: `${SITE_NAME} Logo`,
@@ -73,7 +72,7 @@ export const metadata: Metadata = {
     card: 'summary',
     title: `${SITE_NAME} - Nostr Profile Viewer`,
     description: SITE_DESCRIPTION,
-    images: ['/icons/icon-512.png'],
+    images: ['/icons/icon.svg'],
   },
   robots: {
     index: true,
@@ -146,9 +145,10 @@ export default function RootLayout({
               <nav className="max-w-4xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4" aria-label="Main navigation">
                 <Link
                   href="/"
-                  className="text-xl font-bold text-primary hover:opacity-80 transition-opacity shrink-0"
+                  className="flex items-center gap-2 text-xl font-bold text-primary hover:opacity-80 transition-opacity shrink-0"
                   aria-label="Formastr - Home"
                 >
+                  <img src="/icons/icon.svg" alt="" width={28} height={28} className="rounded-md" />
                   Formastr
                 </Link>
                 <ProfileSearchInput />

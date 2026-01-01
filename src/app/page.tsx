@@ -3,7 +3,8 @@ import { SearchBar } from '@/components/SearchBar';
 export default function Home() {
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-10">
-      <div className="text-center space-y-3">
+      <div className="text-center space-y-4">
+        <img src="/icons/icon.svg" alt="Formastr logo" width={80} height={80} className="mx-auto rounded-xl" />
         <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
           <span className="gradient-text">Formastr</span>
         </h1>
