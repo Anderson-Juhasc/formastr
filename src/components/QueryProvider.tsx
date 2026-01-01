@@ -2,6 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
+import { onMemoryPressure, isLowMemory } from '@/lib/ndk/memory-pressure';
 
 // Detect mobile for more aggressive cache limits
 const isMobile = typeof navigator !== 'undefined' &&
@@ -30,11 +31,16 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
 
   // Periodic cache cleanup to enforce max entries
   useEffect(() => {
-    const cleanup = () => {
+    const cleanup = (aggressive = false) => {
       const cache = queryClient.getQueryCache();
       const queries = cache.getAll();
 
-      if (queries.length > MAX_CACHE_QUERIES) {
+      // Use lower limit on low memory devices or during memory pressure
+      const limit = aggressive || isLowMemory()
+        ? Math.floor(MAX_CACHE_QUERIES / 2)
+        : MAX_CACHE_QUERIES;
+
+      if (queries.length > limit) {
         // Sort by last updated time (oldest first)
         const sortedQueries = [...queries].sort((a, b) => {
           const aTime = a.state.dataUpdatedAt || 0;
@@ -43,7 +49,7 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
         });
 
         // Remove oldest queries to get back under limit
-        const toRemove = sortedQueries.slice(0, queries.length - MAX_CACHE_QUERIES);
+        const toRemove = sortedQueries.slice(0, queries.length - limit);
         for (const query of toRemove) {
           cache.remove(query);
         }
@@ -51,19 +57,25 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
     };
 
     // Run cleanup periodically
-    const interval = setInterval(cleanup, CACHE_CLEANUP_INTERVAL);
+    const interval = setInterval(() => cleanup(false), CACHE_CLEANUP_INTERVAL);
 
     // Also run on visibility change (when returning to page)
     const handleVisibility = () => {
       if (!document.hidden) {
-        cleanup();
+        cleanup(false);
       }
     };
     document.addEventListener('visibilitychange', handleVisibility);
 
+    // Subscribe to memory pressure events for aggressive cleanup
+    const unsubscribeMemory = onMemoryPressure(() => {
+      cleanup(true);
+    });
+
     return () => {
       clearInterval(interval);
       document.removeEventListener('visibilitychange', handleVisibility);
+      unsubscribeMemory();
     };
   }, [queryClient]);
 
