@@ -11,6 +11,10 @@ import { disconnectNDK } from './index';
 let initialized = false;
 let isVisible = typeof document !== 'undefined' ? !document.hidden : true;
 
+// Track if the page has ever been visible
+// This allows background tabs to do initial fetches
+let hasEverBeenVisible = typeof document !== 'undefined' ? !document.hidden : true;
+
 // Callbacks for components that need to know about visibility changes
 type VisibilityCallback = (visible: boolean) => void;
 const visibilityCallbacks = new Set<VisibilityCallback>();
@@ -28,8 +32,14 @@ export function onVisibilityChange(callback: VisibilityCallback): () => void {
 
 /**
  * Check if page is currently visible
+ * Returns true for background tabs that haven't been visible yet (allows initial fetch)
  */
 export function isPageVisible(): boolean {
+  // Allow fetches if the page has never been visible (new background tab)
+  // This enables Ctrl+click to open in new tab to still load data
+  if (!hasEverBeenVisible) {
+    return true;
+  }
   return isVisible;
 }
 
@@ -39,6 +49,11 @@ export function isPageVisible(): boolean {
 function handleVisibilityChange(): void {
   const wasVisible = isVisible;
   isVisible = !document.hidden;
+
+  // Track that page has been visible at least once
+  if (isVisible) {
+    hasEverBeenVisible = true;
+  }
 
   if (wasVisible === isVisible) return;
 
@@ -126,4 +141,5 @@ export function cleanupVisibilityHandler(): void {
 
   visibilityCallbacks.clear();
   initialized = false;
+  hasEverBeenVisible = typeof document !== 'undefined' ? !document.hidden : true;
 }
