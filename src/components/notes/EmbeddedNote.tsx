@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import dynamic from 'next/dynamic';
 import { Note } from '@/types/nostr';
 import { fetchNoteStreaming } from '@/lib/ndk/notes';
 import { Avatar } from '@/components/ui/Avatar';
@@ -11,14 +10,7 @@ import { hexToNpub } from '@/lib/nostr/keys';
 import { nip19 } from 'nostr-tools';
 import Link from 'next/link';
 import { useProfileCache } from '@/hooks/useProfileCache';
-
-const EmbeddedNoteContent = dynamic(
-  () => import('./EmbeddedNoteContent').then((mod) => mod.EmbeddedNoteContent),
-  {
-    ssr: false,
-    loading: () => <Skeleton className="h-4 w-full" />,
-  }
-);
+import { EmbeddedNoteContent } from './EmbeddedNoteContent';
 
 const MAX_EMBED_DEPTH = 2;
 
@@ -149,15 +141,13 @@ function EmbeddedNoteLoader({
     <div className="my-2 border-2 border-border rounded-lg p-3 bg-card shadow-md hover:shadow-lg transition-all">
       <div className="flex items-center justify-between mb-2">
         <EmbeddedNoteAuthor pubkey={note.pubkey} />
-        <span className="text-muted-foreground text-xs">
+        <Link href={noteLink} className="text-muted-foreground text-xs hover:underline hover:text-primary">
           {formatTimestamp(note.createdAt)}
-        </span>
+        </Link>
       </div>
-      <Link href={noteLink} className="block">
-        <div className="text-sm text-card-foreground">
-          <EmbeddedNoteContent content={note.content} tags={note.tags} />
-        </div>
-      </Link>
+      <div className="text-sm text-card-foreground">
+        <EmbeddedNoteContent content={note.content} tags={note.tags} />
+      </div>
     </div>
   );
 }
