@@ -1,64 +1,91 @@
-'use client';
+import { Metadata } from 'next';
+import { nip19 } from 'nostr-tools';
+import { ProfilePageClient } from './ProfilePageClient';
+import {
+  resolveIdentifierForMetadata,
+  fetchProfileMetadata,
+  formatDisplayName,
+  truncateText,
+  SITE_URL,
+  SITE_NAME,
+} from '@/lib/metadata';
 
-import { useParams } from 'next/navigation';
-import { useProfile } from '@/hooks/useProfile';
-import { useNotes } from '@/hooks/useNotes';
-import { ProfileHeader } from '@/components/profile/ProfileHeader';
-import { ProfileTabs } from '@/components/profile/ProfileTabs';
-import { NoteList } from '@/components/notes/NoteList';
-import { ProfileSkeleton } from '@/components/ui/Skeleton';
-import Link from 'next/link';
+// Cache metadata for 12 hours - reduces serverless function calls
+export const revalidate = 43200;
 
-export default function ProfilePage() {
-  const params = useParams();
-  const identifier = decodeURIComponent(params.identifier as string);
+interface PageProps {
+  params: Promise<{ identifier: string }>;
+}
 
-  const { profile, pubkey, loading: profileLoading, error: profileError } = useProfile(identifier);
-  const { notes, loading: notesLoading } = useNotes(pubkey, 20);
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { identifier } = await params;
+  const decodedIdentifier = decodeURIComponent(identifier);
 
-  if (profileError) {
-    return (
-      <div className="text-center py-12">
-        <h1 className="text-2xl font-bold text-destructive mb-4">Error</h1>
-        <p className="text-muted-foreground">{profileError}</p>
-        <Link
-          href="/"
-          className="inline-block mt-4 text-primary hover:underline"
-        >
-          Go back home
-        </Link>
-      </div>
-    );
+  try {
+    // Resolve identifier to pubkey
+    const resolved = await resolveIdentifierForMetadata(decodedIdentifier);
+
+    if (!resolved) {
+      return {
+        title: 'Profile Not Found',
+        description: 'The requested Nostr profile could not be found.',
+      };
+    }
+
+    const { pubkey, relays } = resolved;
+    const npub = nip19.npubEncode(pubkey);
+
+    // Fetch profile metadata
+    const profile = await fetchProfileMetadata(pubkey, relays);
+    const displayName = formatDisplayName(profile, npub);
+    const description = profile?.about
+      ? truncateText(profile.about, 160)
+      : `View ${displayName}'s Nostr profile, notes, and connections on Formastr.`;
+
+    const pageUrl = `${SITE_URL}/${encodeURIComponent(decodedIdentifier)}`;
+
+    return {
+      title: displayName,
+      description,
+      openGraph: {
+        type: 'profile',
+        url: pageUrl,
+        title: `${displayName} | ${SITE_NAME}`,
+        description,
+        images: profile?.picture
+          ? [
+              {
+                url: profile.picture,
+                alt: `${displayName}'s profile picture`,
+              },
+            ]
+          : undefined,
+      },
+      twitter: {
+        card: profile?.picture ? 'summary_large_image' : 'summary',
+        title: `${displayName} | ${SITE_NAME}`,
+        description,
+        images: profile?.picture ? [profile.picture] : undefined,
+      },
+      alternates: {
+        canonical: pageUrl,
+      },
+      other: {
+        'profile:username': profile?.name || npub,
+      },
+    };
+  } catch {
+    // Fallback metadata on error
+    return {
+      title: 'Nostr Profile',
+      description: 'View this Nostr profile on Formastr.',
+    };
   }
+}
 
-  if (profileLoading) {
-    return <ProfileSkeleton />;
-  }
+export default async function ProfilePage({ params }: PageProps) {
+  const { identifier } = await params;
+  const decodedIdentifier = decodeURIComponent(identifier);
 
-  if (!profile) {
-    return (
-      <div className="text-center py-12">
-        <h1 className="text-2xl font-bold text-foreground mb-4">Profile Not Found</h1>
-        <Link
-          href="/"
-          className="inline-block text-primary hover:underline"
-        >
-          Go back home
-        </Link>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-8">
-      <ProfileHeader profile={profile} />
-      <ProfileTabs identifier={identifier} />
-      <NoteList
-        notes={notes}
-        author={profile}
-        loading={notesLoading}
-        showAuthor={false}
-      />
-    </div>
-  );
+  return <ProfilePageClient identifier={decodedIdentifier} />;
 }

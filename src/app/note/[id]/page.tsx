@@ -1,256 +1,110 @@
-'use client';
-
-import { useParams } from 'next/navigation';
-import { useState, useEffect, useRef } from 'react';
-import { Note, Profile } from '@/types/nostr';
-import { fetchNoteStreaming } from '@/lib/ndk/notes';
-import { fetchProfileStreaming } from '@/lib/ndk/profiles';
-import { Avatar } from '@/components/ui/Avatar';
-import { Card } from '@/components/ui/Card';
-import { NoteContent } from '@/components/notes/NoteContent';
-import { NoteStatsBar } from '@/components/notes/NoteStats';
-import { LazyReplyList } from '@/components/lazy';
-import { NoteSkeleton } from '@/components/ui/Skeleton';
-import { useNoteStats } from '@/hooks/useNoteStats';
-import { useReplies } from '@/hooks/useReplies';
-import { formatNpub } from '@/lib/utils';
-import { hexToNpub } from '@/lib/nostr/keys';
-import { getReplyToId } from '@/lib/nostr/content';
+import { Metadata } from 'next';
 import { nip19 } from 'nostr-tools';
-import Link from 'next/link';
+import { NotePageClient } from './NotePageClient';
+import {
+  decodeNoteId,
+  fetchNoteMetadata,
+  fetchProfileMetadata,
+  formatDisplayName,
+  truncateText,
+  SITE_URL,
+  SITE_NAME,
+} from '@/lib/metadata';
 
-// Fast first content timeout
-const FIRST_CONTENT_TIMEOUT = 2000;
+// Cache metadata for 12 hours - reduces serverless function calls
+export const revalidate = 43200;
 
-export default function NotePage() {
-  const params = useParams();
-  const noteId = params.id as string;
+interface PageProps {
+  params: Promise<{ id: string }>;
+}
 
-  const [note, setNote] = useState<Note | null>(null);
-  const [author, setAuthor] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [hexId, setHexId] = useState<string>('');
-  const loadingRef = useRef(true);
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { id } = await params;
 
-  const { stats, loading: statsLoading } = useNoteStats(hexId, !!hexId);
-  const { replies, loading: repliesLoading } = useReplies(hexId, !!hexId);
+  try {
+    // Decode note identifier
+    const decoded = decodeNoteId(id);
 
-  useEffect(() => {
-    let cancelled = false;
-    let cancelNote: (() => void) | null = null;
-    let cancelProfile: (() => void) | null = null;
-    let fastTimeout: ReturnType<typeof setTimeout> | null = null;
-
-    async function load() {
-      setLoading(true);
-      loadingRef.current = true;
-      setError(null);
-      setNote(null);
-      setAuthor(null);
-
-      try {
-        let id = noteId;
-
-        // Strip nostr: prefix if present
-        let identifier = noteId;
-        if (identifier.startsWith('nostr:')) {
-          identifier = identifier.slice(6);
-        }
-
-        // Decode based on prefix
-        if (identifier.startsWith('note1')) {
-          const decoded = nip19.decode(identifier);
-          if (decoded.type === 'note') {
-            id = decoded.data;
-          }
-        } else if (identifier.startsWith('nevent1')) {
-          const decoded = nip19.decode(identifier);
-          if (decoded.type === 'nevent') {
-            id = decoded.data.id;
-          }
-        } else if (identifier.startsWith('naddr1')) {
-          const decoded = nip19.decode(identifier);
-          if (decoded.type === 'naddr') {
-            setError('Addressable events (naddr) are not yet supported');
-            setLoading(false);
-            loadingRef.current = false;
-            return;
-          }
-        } else if (/^[a-f0-9]{64}$/i.test(identifier)) {
-          id = identifier;
-        }
-
-        setHexId(id);
-
-        // Fast first content: hide loading after timeout
-        fastTimeout = setTimeout(() => {
-          if (loadingRef.current && !cancelled) {
-            loadingRef.current = false;
-            setLoading(false);
-          }
-        }, FIRST_CONTENT_TIMEOUT);
-
-        // Fetch note with streaming - shows immediately when first event arrives
-        let noteFound = false;
-        const noteSub = fetchNoteStreaming(
-          id,
-          (noteData) => {
-            if (cancelled || noteFound) return;
-            noteFound = true;
-
-            // Show note immediately
-            setNote(noteData);
-
-            // Fast first content: hide loading when note arrives
-            if (loadingRef.current) {
-              loadingRef.current = false;
-              setLoading(false);
-            }
-
-            // Fetch profile in background (non-blocking)
-            const profileSub = fetchProfileStreaming(
-              noteData.pubkey,
-              (profileData) => {
-                if (!cancelled) {
-                  setAuthor(profileData);
-                }
-              },
-              () => {} // Don't care about completion
-            );
-            cancelProfile = profileSub.cancel;
-          },
-          () => {
-            // EOSE - if no note found, show error
-            if (!cancelled && !noteFound) {
-              setError('Note not found');
-              setLoading(false);
-              loadingRef.current = false;
-            }
-          }
-        );
-        cancelNote = noteSub.cancel;
-
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Failed to load note');
-          setLoading(false);
-          loadingRef.current = false;
-        }
-      }
+    if (!decoded) {
+      return {
+        title: 'Note Not Found',
+        description: 'The requested Nostr note could not be found.',
+      };
     }
 
-    load();
+    const { id: hexId, relays } = decoded;
 
-    return () => {
-      cancelled = true;
-      if (fastTimeout) clearTimeout(fastTimeout);
-      cancelNote?.();
-      cancelProfile?.();
+    // Fetch note metadata
+    const note = await fetchNoteMetadata(hexId, relays);
+
+    if (!note) {
+      return {
+        title: 'Note',
+        description: 'View this Nostr note on Formastr.',
+      };
+    }
+
+    // Fetch author profile for richer metadata
+    const author = await fetchProfileMetadata(note.pubkey, relays);
+    const authorName = formatDisplayName(author, nip19.npubEncode(note.pubkey));
+
+    // Create description from note content
+    const contentPreview = truncateText(
+      note.content.replace(/\n+/g, ' ').trim(),
+      160
+    );
+    const description = contentPreview || `A note by ${authorName} on Nostr.`;
+
+    // Create title from content or author
+    const titlePreview = truncateText(note.content.replace(/\n+/g, ' ').trim(), 60);
+    const title = titlePreview || `Note by ${authorName}`;
+
+    const noteId = nip19.noteEncode(hexId);
+    const pageUrl = `${SITE_URL}/note/${noteId}`;
+
+    return {
+      title,
+      description,
+      openGraph: {
+        type: 'article',
+        url: pageUrl,
+        title: `${title} | ${SITE_NAME}`,
+        description,
+        images: author?.picture
+          ? [
+              {
+                url: author.picture,
+                alt: `${authorName}'s profile picture`,
+              },
+            ]
+          : undefined,
+        publishedTime: new Date(note.createdAt * 1000).toISOString(),
+        authors: [authorName],
+      },
+      twitter: {
+        card: 'summary',
+        title: `${title} | ${SITE_NAME}`,
+        description,
+        images: author?.picture ? [author.picture] : undefined,
+      },
+      alternates: {
+        canonical: pageUrl,
+      },
+      other: {
+        'article:author': authorName,
+        'article:published_time': new Date(note.createdAt * 1000).toISOString(),
+      },
     };
-  }, [noteId]);
-
-  if (loading) {
-    return (
-      <div className="max-w-2xl mx-auto">
-        <NoteSkeleton />
-      </div>
-    );
+  } catch {
+    // Fallback metadata on error
+    return {
+      title: 'Note',
+      description: 'View this Nostr note on Formastr.',
+    };
   }
+}
 
-  if (error || !note) {
-    return (
-      <div className="text-center py-12">
-        <h1 className="text-2xl font-bold text-destructive mb-4">Error</h1>
-        <p className="text-muted-foreground">{error || 'Note not found'}</p>
-        <Link
-          href="/"
-          className="inline-block mt-4 text-primary hover:underline"
-        >
-          Go back home
-        </Link>
-      </div>
-    );
-  }
-
-  const npub = hexToNpub(note.pubkey);
-  const displayName = author?.displayName || author?.name || formatNpub(npub);
-  const replyToId = getReplyToId(note.tags);
-  const createdDate = new Date(note.createdAt * 1000);
-
-  return (
-    <div className="max-w-2xl mx-auto space-y-4">
-      {/* Reply indicator */}
-      {replyToId && (
-        <Link
-          href={`/note/${nip19.noteEncode(replyToId)}`}
-          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary font-medium"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
-            />
-          </svg>
-          <span>View parent note</span>
-        </Link>
-      )}
-
-      <Card>
-        {/* Author */}
-        <Link href={`/${npub}`} className="flex items-center gap-3 mb-4">
-          <Avatar src={author?.picture} alt={displayName} size="lg" />
-          <div>
-            <p className="font-bold text-lg text-card-foreground">
-              {displayName}
-            </p>
-            {author?.nip05 && (
-              <p className="text-primary text-sm font-semibold">
-                {author.nip05}
-              </p>
-            )}
-          </div>
-        </Link>
-
-        {/* Content */}
-        <div className="text-lg text-card-foreground mb-4">
-          <NoteContent content={note.content} tags={note.tags} />
-        </div>
-
-        {/* Timestamp */}
-        <div className="pt-4 border-t-2 border-border">
-          <time className="text-muted-foreground">
-            {createdDate.toLocaleDateString(undefined, {
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric',
-            })}{' '}
-            at{' '}
-            {createdDate.toLocaleTimeString(undefined, {
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
-          </time>
-        </div>
-
-        {/* Stats */}
-        <NoteStatsBar stats={stats} loading={statsLoading} />
-      </Card>
-
-      {/* Comments */}
-      <LazyReplyList replies={replies} loading={repliesLoading} />
-
-      {/* Note ID info */}
-      <div className="text-sm text-muted-foreground space-y-1">
-        <p>
-          <span className="font-semibold">Note ID:</span>{' '}
-          <code className="bg-card px-1.5 py-0.5 rounded text-xs text-card-foreground border-2 border-border shadow-sm">
-            {nip19.noteEncode(note.id)}
-          </code>
-        </p>
-      </div>
-    </div>
-  );
+export default async function NotePage({ params }: PageProps) {
+  const { id } = await params;
+  return <NotePageClient noteId={id} />;
 }
