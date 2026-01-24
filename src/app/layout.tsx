@@ -148,7 +148,7 @@ export default function RootLayout({
                   className="flex items-center gap-2 text-xl font-bold text-primary hover:opacity-80 transition-opacity shrink-0"
                   aria-label="Formastr - Home"
                 >
-                  <img src="/icons/icon.svg" alt="" width={28} height={28} className="rounded-md" />
+                  <img src="/icons/formastr.svg" alt="" width={28} height={28} className="rounded-md" />
                   Formastr
                 </Link>
                 <ProfileSearchInput />
