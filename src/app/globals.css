@@ -238,8 +238,16 @@ button, a, input, [role="button"], .transition-all, .transition-colors {
 
 /* Gradient text utility */
 .gradient-text {
+  color: #a855f7;
   background: linear-gradient(135deg, var(--primary) 0%, #c084fc 100%);
   -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
   background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Dark Reader fallback - use solid color when extension is active */
+html[data-darkreader-mode] .gradient-text {
+  background: none;
+  -webkit-text-fill-color: unset;
+  color: #a855f7;
 }
