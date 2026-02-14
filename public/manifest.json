@@ -15,13 +15,13 @@
   "categories": ["social", "utilities"],
   "icons": [
     {
-      "src": "/icons/icon.svg",
+      "src": "/icons/formastr.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"
     },
     {
-      "src": "/icons/icon.svg",
+      "src": "/icons/formastr.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "maskable"
@@ -34,7 +34,7 @@
       "short_name": "Search",
       "description": "Search for Nostr profiles",
       "url": "/",
-      "icons": [{ "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+      "icons": [{ "src": "/icons/formastr.svg", "sizes": "any", "type": "image/svg+xml" }]
     }
   ],
   "related_applications": [],

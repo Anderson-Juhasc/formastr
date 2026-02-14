@@ -46,10 +46,10 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: '/icons/icon.svg', sizes: 'any', type: 'image/svg+xml' },
+      { url: '/icons/formastr.svg', sizes: 'any', type: 'image/svg+xml' },
     ],
     apple: [
-      { url: '/icons/icon.svg', sizes: 'any', type: 'image/svg+xml' },
+      { url: '/icons/formastr.svg', sizes: 'any', type: 'image/svg+xml' },
     ],
   },
   openGraph: {
@@ -61,7 +61,7 @@ export const metadata: Metadata = {
     description: SITE_DESCRIPTION,
     images: [
       {
-        url: '/icons/icon.svg',
+        url: '/icons/formastr.svg',
         width: 512,
         height: 512,
         alt: `${SITE_NAME} Logo`,
@@ -72,7 +72,7 @@ export const metadata: Metadata = {
     card: 'summary',
     title: `${SITE_NAME} - Nostr Profile Viewer`,
     description: SITE_DESCRIPTION,
-    images: ['/icons/icon.svg'],
+    images: ['/icons/formastr.svg'],
   },
   robots: {
     index: true,
