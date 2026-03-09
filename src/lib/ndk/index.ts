@@ -25,7 +25,7 @@ export const ndk = new NDK({
   explicitRelayUrls: DEFAULT_RELAYS,
   outboxRelayUrls: BOOTSTRAP_RELAYS,
   enableOutboxModel: !isMobile, // Disabled on mobile to save resources
-  cacheAdapter,
+  cacheAdapter: cacheAdapter as unknown as import('@nostr-dev-kit/ndk').NDKCacheAdapter,
 });
 
 // Connection promise for awaiting
