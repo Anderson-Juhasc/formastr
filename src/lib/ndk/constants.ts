@@ -14,3 +14,6 @@ export const PROFILE_REQUEST_TIMEOUT = 15000;
 
 // Interval for cleaning up stale pending requests
 export const PENDING_REQUEST_CLEANUP_INTERVAL = 60000;
+
+// Maximum time to wait for initial relay connection before proceeding
+export const CONNECTION_TIMEOUT = 5000;

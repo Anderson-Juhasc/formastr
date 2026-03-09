@@ -203,9 +203,31 @@ export async function fetchProfileMetadata(
     });
   };
 
-  // Race all relays
-  const results = await Promise.all(relays.map(fetchFromRelay));
-  return results.find((r) => r !== null) || null;
+  // Race relays - return first successful result, don't wait for all
+  return raceRelays(relays.map(fetchFromRelay));
+}
+
+/**
+ * Race multiple relay promises - resolves with first non-null result.
+ * Unlike Promise.all, doesn't wait for slow/failing relays.
+ */
+async function raceRelays<T>(promises: Promise<T | null>[]): Promise<T | null> {
+  return new Promise((resolve) => {
+    let resolved = false;
+    let completedCount = 0;
+
+    for (const promise of promises) {
+      promise.then((result) => {
+        completedCount++;
+        if (!resolved && result !== null) {
+          resolved = true;
+          resolve(result);
+        } else if (completedCount === promises.length && !resolved) {
+          resolve(null);
+        }
+      });
+    }
+  });
 }
 
 /**
@@ -295,8 +317,8 @@ export async function fetchNoteMetadata(
     });
   };
 
-  const results = await Promise.all(relays.map(fetchFromRelay));
-  return results.find((r) => r !== null) || null;
+  // Race relays - return first successful result, don't wait for all
+  return raceRelays(relays.map(fetchFromRelay));
 }
 
 /**

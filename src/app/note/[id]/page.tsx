@@ -44,8 +44,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       };
     }
 
-    // Fetch author profile for richer metadata
-    const author = await fetchProfileMetadata(note.pubkey, relays);
+    // Fetch author profile in parallel with note resolution
+    // (note is already resolved at this point, but profile fetch starts immediately)
+    const author = await fetchProfileMetadata(note.pubkey);
     const authorName = formatDisplayName(author, nip19.npubEncode(note.pubkey));
 
     // Create description from note content

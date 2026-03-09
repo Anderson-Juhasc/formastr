@@ -2,6 +2,7 @@ import NDK from '@nostr-dev-kit/ndk';
 import NDKCacheAdapterDexie from '@nostr-dev-kit/ndk-cache-dexie';
 import { DEFAULT_RELAYS, BOOTSTRAP_RELAYS } from '../nostr/relays';
 import { attachDexieCacheLimiter } from './cache-limiter';
+import { CONNECTION_TIMEOUT } from './constants';
 
 // Detect mobile for cache limits
 const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -40,7 +41,19 @@ let isShuttingDown = false;
 export async function connectNDK(): Promise<void> {
   if (connectionPromise) return connectionPromise;
 
-  connectionPromise = ndk.connect().catch((error) => {
+  // Race ndk.connect() against a timeout to prevent blocking if relays are slow/down.
+  // ndk.connect() initiates connections to all relays; if some fail, the pool
+  // continues with the ones that succeed. The timeout ensures we don't wait
+  // indefinitely if all relays are unreachable.
+  connectionPromise = Promise.race([
+    ndk.connect(),
+    new Promise<void>((resolve) => {
+      setTimeout(() => {
+        console.warn('[NDK] Connection timeout reached, proceeding with available relays');
+        resolve();
+      }, CONNECTION_TIMEOUT);
+    }),
+  ]).catch((error) => {
     console.error('[NDK] Connection error:', error);
     connectionPromise = null; // Allow retry on error
     throw error;
